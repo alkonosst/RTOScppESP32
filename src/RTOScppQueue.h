@@ -10,11 +10,22 @@
 #include <Arduino.h>
 #include <freertos/queue.h>
 
+// QueueBase forward declaration
+template <typename T>
+class QueueBase;
+
+// operator==<T> forward declaration
+template <typename T>
+bool operator==(const QueueSetMemberHandle_t& queue_set_member, const QueueBase<T>& queue);
+
 template <typename T>
 class QueueBase {
   private:
   QueueBase(QueueBase const&)      = delete;
   void operator=(QueueBase const&) = delete;
+
+  friend bool operator==
+    <>(const QueueSetMemberHandle_t& queue_set_member, const QueueBase<T>& queue);
 
   protected:
   QueueBase(QueueHandle_t handle)
@@ -25,6 +36,8 @@ class QueueBase {
   QueueHandle_t _handle;
 
   public:
+  QueueHandle_t getHandle() { return _handle; }
+
   uint32_t availableMessages() { return uxQueueMessagesWaiting(_handle); }
   uint32_t availableMessagesFromISR() { return uxQueueMessagesWaitingFromISR(_handle); }
   uint32_t availableSpaces() { return uxQueueSpacesAvailable(_handle); }
@@ -64,6 +77,11 @@ class QueueBase {
 
   bool peekFromISR(T& var) { return xQueuePeekFromISR(_handle, &var); }
 };
+
+template <typename T>
+bool operator==(const QueueSetMemberHandle_t& queue_set_member, const QueueBase<T>& queue) {
+  return queue_set_member == queue._handle;
+}
 
 template <typename T, uint32_t LENGTH>
 class Queue : public QueueBase<T> {

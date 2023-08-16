@@ -8,11 +8,14 @@
 #define RTOS_CPP_LOCK_H
 
 #include <Arduino.h>
+#include <freertos/semphr.h>
 
 class Lock {
   private:
   Lock(Lock const&)           = delete;
   void operator=(Lock const&) = delete;
+
+  friend bool operator==(const QueueSetMemberHandle_t& queue_set_member, const Lock& semaphore);
 
   protected:
   Lock(SemaphoreHandle_t handle)
@@ -23,12 +26,18 @@ class Lock {
   StaticSemaphore_t _tcb;
 
   public:
+  SemaphoreHandle_t getHandle() { return _handle; }
+
   virtual bool take(const TickType_t ticks_to_wait = portMAX_DELAY) {
     return xSemaphoreTake(_handle, ticks_to_wait);
   }
 
   virtual bool give() { return xSemaphoreGive(_handle); }
 };
+
+bool operator==(const QueueSetMemberHandle_t& queue_set_member, const Lock& semaphore) {
+  return queue_set_member == semaphore._handle;
+}
 
 class Mutex : public Lock {
   public:

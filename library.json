@@ -1,0 +1,11 @@
+{
+  "name": "RTOScppESP32",
+  "version": "0.2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alkonosst/RTOScppESP32.git"
+  },
+  "license": "GPL-3.0 license",
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}
