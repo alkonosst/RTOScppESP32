@@ -55,7 +55,10 @@ class Timer : public TimerBase {
   public:
   Timer(const char* name, TimerCallbackFunction_t callback, TickType_t period, bool auto_reload,
         bool start)
-      : TimerBase(xTimerCreateStatic(name, period, auto_reload, this, callback, &_tcb)) {}
+      : TimerBase(xTimerCreateStatic(name, period, auto_reload, this, callback, &_tcb)) {
+    if (start)
+      this->start();
+  }
 
   private:
   StaticTimer_t _tcb;
