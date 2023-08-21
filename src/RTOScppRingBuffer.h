@@ -29,7 +29,8 @@ class RingBufBase {
   RingbufHandle_t getHandle() { return _handle; }
 };
 
-bool operator==(const QueueSetMemberHandle_t& queue_set_member, const RingBufBase& ring_buffer) {
+inline bool operator==(const QueueSetMemberHandle_t& queue_set_member,
+                       const RingBufBase& ring_buffer) {
   return xRingbufferCanRead(ring_buffer._handle, queue_set_member);
 }
 
