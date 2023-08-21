@@ -35,7 +35,7 @@ class Lock {
   virtual bool give() { return xSemaphoreGive(_handle); }
 };
 
-bool operator==(const QueueSetMemberHandle_t& queue_set_member, const Lock& semaphore) {
+inline bool operator==(const QueueSetMemberHandle_t& queue_set_member, const Lock& semaphore) {
   return queue_set_member == semaphore._handle;
 }
 
