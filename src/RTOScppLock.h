@@ -12,21 +12,20 @@
 
 class Lock {
   private:
-  Lock(Lock const&)           = delete;
-  void operator=(Lock const&) = delete;
+  Lock(Lock const&)           = delete; // Delete copy constructor
+  void operator=(Lock const&) = delete; // Delete copy assignment operator
 
   friend bool operator==(const QueueSetMemberHandle_t& queue_set_member, const Lock& semaphore);
 
   protected:
   Lock(SemaphoreHandle_t handle)
       : _handle(handle) {}
-  ~Lock() { vSemaphoreDelete(_handle); }
+  virtual ~Lock() { vSemaphoreDelete(_handle); }
 
   SemaphoreHandle_t _handle;
-  StaticSemaphore_t _tcb;
 
   public:
-  SemaphoreHandle_t getHandle() { return _handle; }
+  // SemaphoreHandle_t getHandle() { return _handle; }
 
   virtual bool take(const TickType_t ticks_to_wait = portMAX_DELAY) {
     return xSemaphoreTake(_handle, ticks_to_wait);
@@ -39,15 +38,36 @@ inline bool operator==(const QueueSetMemberHandle_t& queue_set_member, const Loc
   return queue_set_member == semaphore._handle;
 }
 
-class Mutex : public Lock {
+class MutexDynamic : public Lock {
   public:
-  Mutex()
-      : Lock(xSemaphoreCreateMutexStatic(&_tcb)) {}
+  MutexDynamic()
+      : Lock(xSemaphoreCreateMutex()) {}
 };
 
-class MutexRecursive : public Lock {
+class MutexStatic : public Lock {
   public:
-  MutexRecursive()
+  MutexStatic()
+      : Lock(xSemaphoreCreateMutexStatic(&_tcb)) {}
+
+  private:
+  StaticSemaphore_t _tcb;
+};
+
+class MutexRecursiveDynamic : public Lock {
+  public:
+  MutexRecursiveDynamic()
+      : Lock(xSemaphoreCreateRecursiveMutex()) {}
+
+  bool take(const TickType_t ticks_to_wait = portMAX_DELAY) override {
+    return xSemaphoreTakeRecursive(_handle, ticks_to_wait);
+  }
+
+  bool give() override { return xSemaphoreGiveRecursive(_handle); }
+};
+
+class MutexRecursiveStatic : public Lock {
+  public:
+  MutexRecursiveStatic()
       : Lock(xSemaphoreCreateRecursiveMutexStatic(&_tcb)) {}
 
   bool take(const TickType_t ticks_to_wait = portMAX_DELAY) override {
@@ -55,6 +75,9 @@ class MutexRecursive : public Lock {
   }
 
   bool give() override { return xSemaphoreGiveRecursive(_handle); }
+
+  private:
+  StaticSemaphore_t _tcb;
 };
 
 class Semaphore : public Lock {
@@ -65,18 +88,37 @@ class Semaphore : public Lock {
   public:
   bool takeFromISR(BaseType_t& task_woken) { return xSemaphoreTakeFromISR(_handle, &task_woken); }
   bool giveFromISR(BaseType_t& task_woken) { return xSemaphoreGiveFromISR(_handle, &task_woken); }
+  uint8_t getCount() { return uxSemaphoreGetCount(_handle); }
 };
 
-class SemaphoreBinary : public Semaphore {
+class SemaphoreBinaryDynamic : public Semaphore {
   public:
-  SemaphoreBinary()
+  SemaphoreBinaryDynamic()
+      : Semaphore(xSemaphoreCreateBinary()) {}
+};
+
+class SemaphoreBinaryStatic : public Semaphore {
+  public:
+  SemaphoreBinaryStatic()
       : Semaphore(xSemaphoreCreateBinaryStatic(&_tcb)) {}
+
+  private:
+  StaticSemaphore_t _tcb;
 };
 
-class SemaphoreCounting : public Semaphore {
+class SemaphoreCountingDynamic : public Semaphore {
   public:
-  SemaphoreCounting(const uint8_t max_count, const uint8_t initial_count = 0)
+  SemaphoreCountingDynamic(const uint8_t max_count, const uint8_t initial_count = 0)
+      : Semaphore(xSemaphoreCreateCounting(max_count, initial_count)) {}
+};
+
+class SemaphoreCountingStatic : public Semaphore {
+  public:
+  SemaphoreCountingStatic(const uint8_t max_count, const uint8_t initial_count = 0)
       : Semaphore(xSemaphoreCreateCountingStatic(max_count, initial_count, &_tcb)) {}
+
+  private:
+  StaticSemaphore_t _tcb;
 };
 
 #endif // RTOS_CPP_LOCK_H
