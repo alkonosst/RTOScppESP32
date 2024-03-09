@@ -13,8 +13,8 @@
 
 class DataBuffer {
   private:
-  DataBuffer(const DataBuffer&)     = delete;
-  void operator=(const DataBuffer&) = delete;
+  DataBuffer(const DataBuffer&)     = delete; // Delete copy constructor
+  void operator=(const DataBuffer&) = delete; // Delete copy assignment operator
 
   protected:
   DataBuffer(StreamBufferHandle_t handle)
