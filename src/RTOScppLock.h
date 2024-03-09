@@ -10,17 +10,17 @@
 #include <Arduino.h>
 #include <freertos/semphr.h>
 
-class Lock {
+class LockBase {
   private:
-  Lock(Lock const&)           = delete; // Delete copy constructor
-  void operator=(Lock const&) = delete; // Delete copy assignment operator
+  LockBase(LockBase const&)       = delete; // Delete copy constructor
+  void operator=(LockBase const&) = delete; // Delete copy assignment operator
 
-  friend bool operator==(const QueueSetMemberHandle_t& queue_set_member, const Lock& semaphore);
+  friend bool operator==(const QueueSetMemberHandle_t& queue_set_member, const LockBase& semaphore);
 
   protected:
-  Lock(SemaphoreHandle_t handle)
+  LockBase(SemaphoreHandle_t handle)
       : _handle(handle) {}
-  virtual ~Lock() {
+  virtual ~LockBase() {
     if (_handle) vSemaphoreDelete(_handle);
   }
 
@@ -36,29 +36,29 @@ class Lock {
   virtual bool give() { return xSemaphoreGive(_handle); }
 };
 
-inline bool operator==(const QueueSetMemberHandle_t& queue_set_member, const Lock& semaphore) {
+inline bool operator==(const QueueSetMemberHandle_t& queue_set_member, const LockBase& semaphore) {
   return queue_set_member == semaphore._handle;
 }
 
-class MutexDynamic : public Lock {
+class MutexDynamic : public LockBase {
   public:
   MutexDynamic()
-      : Lock(xSemaphoreCreateMutex()) {}
+      : LockBase(xSemaphoreCreateMutex()) {}
 };
 
-class MutexStatic : public Lock {
+class MutexStatic : public LockBase {
   public:
   MutexStatic()
-      : Lock(xSemaphoreCreateMutexStatic(&_tcb)) {}
+      : LockBase(xSemaphoreCreateMutexStatic(&_tcb)) {}
 
   private:
   StaticSemaphore_t _tcb;
 };
 
-class MutexRecursiveDynamic : public Lock {
+class MutexRecursiveDynamic : public LockBase {
   public:
   MutexRecursiveDynamic()
-      : Lock(xSemaphoreCreateRecursiveMutex()) {}
+      : LockBase(xSemaphoreCreateRecursiveMutex()) {}
 
   bool take(const TickType_t ticks_to_wait = portMAX_DELAY) override {
     return xSemaphoreTakeRecursive(_handle, ticks_to_wait);
@@ -67,10 +67,10 @@ class MutexRecursiveDynamic : public Lock {
   bool give() override { return xSemaphoreGiveRecursive(_handle); }
 };
 
-class MutexRecursiveStatic : public Lock {
+class MutexRecursiveStatic : public LockBase {
   public:
   MutexRecursiveStatic()
-      : Lock(xSemaphoreCreateRecursiveMutexStatic(&_tcb)) {}
+      : LockBase(xSemaphoreCreateRecursiveMutexStatic(&_tcb)) {}
 
   bool take(const TickType_t ticks_to_wait = portMAX_DELAY) override {
     return xSemaphoreTakeRecursive(_handle, ticks_to_wait);
@@ -82,10 +82,10 @@ class MutexRecursiveStatic : public Lock {
   StaticSemaphore_t _tcb;
 };
 
-class Semaphore : public Lock {
+class Semaphore : public LockBase {
   protected:
   Semaphore(SemaphoreHandle_t handle)
-      : Lock(handle) {}
+      : LockBase(handle) {}
 
   public:
   bool takeFromISR(BaseType_t& task_woken) { return xSemaphoreTakeFromISR(_handle, &task_woken); }
