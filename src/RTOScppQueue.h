@@ -10,35 +10,42 @@
 #include <Arduino.h>
 #include <freertos/queue.h>
 
-// QueueBase forward declaration
-template <typename T>
-class QueueBase;
+// Forward declaration of QueueSet
+class QueueSet;
 
-// operator==<T> forward declaration
-template <typename T>
-bool operator==(const QueueSetMemberHandle_t& queue_set_member, const QueueBase<T>& queue);
-
-template <typename T>
-class QueueBase {
+class QueueInterface {
   private:
-  QueueBase(QueueBase const&)      = delete; // Delete copy constructor
-  void operator=(QueueBase const&) = delete; // Delete copy assignment operator
-
-  friend bool operator==
-    <>(const QueueSetMemberHandle_t& queue_set_member, const QueueBase<T>& queue);
+  friend class QueueSet;
+  friend bool operator==(const QueueSetMemberHandle_t& queue_set_member,
+                         const QueueInterface& queue);
 
   protected:
-  QueueBase(QueueHandle_t handle)
+  QueueInterface(QueueHandle_t handle)
       : _handle(handle) {}
-  virtual ~QueueBase() {
+  virtual ~QueueInterface() {
     if (_handle) vQueueDelete(_handle);
   }
 
   QueueHandle_t _handle;
+};
+
+inline bool operator==(const QueueSetMemberHandle_t& queue_set_member,
+                       const QueueInterface& queue) {
+  return queue_set_member == queue._handle;
+}
+
+template <typename T>
+class QueueBase : public QueueInterface {
+  private:
+  QueueBase(QueueBase const&)      = delete; // Delete copy constructor
+  void operator=(QueueBase const&) = delete; // Delete copy assignment operator
+
+  protected:
+  QueueBase(QueueHandle_t handle)
+      : QueueInterface(handle) {}
+  virtual ~QueueBase() {}
 
   public:
-  QueueHandle_t getHandle() { return _handle; }
-
   uint32_t getAvailableMessages() { return uxQueueMessagesWaiting(_handle); }
   uint32_t getAvailableMessagesFromISR() { return uxQueueMessagesWaitingFromISR(_handle); }
   uint32_t getAvailableSpaces() { return uxQueueSpacesAvailable(_handle); }
@@ -78,11 +85,6 @@ class QueueBase {
 
   bool peekFromISR(T& var) { return xQueuePeekFromISR(_handle, &var); }
 };
-
-template <typename T>
-bool operator==(const QueueSetMemberHandle_t& queue_set_member, const QueueBase<T>& queue) {
-  return queue_set_member == queue._handle;
-}
 
 template <typename T>
 class QueueDynamic : public QueueBase<T> {

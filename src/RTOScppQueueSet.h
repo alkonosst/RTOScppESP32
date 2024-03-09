@@ -16,11 +16,12 @@ class QueueSet {
   public:
   QueueSet(const uint8_t queue_length)
       : _handle(xQueueCreateSet(queue_length)) {}
-  ~QueueSet() { vQueueDelete(_handle); }
-
-  bool add(QueueSetMemberHandle_t queue_or_semaphore) {
-    return xQueueAddToSet(queue_or_semaphore, _handle);
+  ~QueueSet() {
+    if (_handle) vQueueDelete(_handle);
   }
+
+  bool add(LockBase& lock) { return xQueueAddToSet(lock._handle, _handle); }
+  bool add(QueueInterface& queue) { return xQueueAddToSet(queue._handle, _handle); }
 
   bool add(RingbufHandle_t ring_buffer) {
     return xRingbufferAddToQueueSetRead(ring_buffer, _handle);

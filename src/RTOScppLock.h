@@ -10,12 +10,16 @@
 #include <Arduino.h>
 #include <freertos/semphr.h>
 
+// Forward declaration of QueueSet
+class QueueSet;
+
 class LockBase {
   private:
   LockBase(LockBase const&)       = delete; // Delete copy constructor
   void operator=(LockBase const&) = delete; // Delete copy assignment operator
 
-  friend bool operator==(const QueueSetMemberHandle_t& queue_set_member, const LockBase& semaphore);
+  friend class QueueSet;
+  friend bool operator==(const QueueSetMemberHandle_t& queue_set_member, const LockBase& lock);
 
   protected:
   LockBase(SemaphoreHandle_t handle)
@@ -27,8 +31,6 @@ class LockBase {
   SemaphoreHandle_t _handle;
 
   public:
-  // SemaphoreHandle_t getHandle() { return _handle; }
-
   virtual bool take(const TickType_t ticks_to_wait = portMAX_DELAY) {
     return xSemaphoreTake(_handle, ticks_to_wait);
   }
@@ -36,8 +38,8 @@ class LockBase {
   virtual bool give() { return xSemaphoreGive(_handle); }
 };
 
-inline bool operator==(const QueueSetMemberHandle_t& queue_set_member, const LockBase& semaphore) {
-  return queue_set_member == semaphore._handle;
+inline bool operator==(const QueueSetMemberHandle_t& queue_set_member, const LockBase& lock) {
+  return queue_set_member == lock._handle;
 }
 
 class MutexDynamic : public LockBase {
