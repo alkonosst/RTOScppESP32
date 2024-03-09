@@ -23,9 +23,7 @@ class TaskBase {
       , _handle(nullptr) {}
 
   virtual ~TaskBase() {
-    if (_handle) {
-      vTaskDelete(_handle);
-    }
+    if (_handle) vTaskDelete(_handle);
   }
 
   const char* _name;
