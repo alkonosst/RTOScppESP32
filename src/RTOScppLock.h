@@ -20,7 +20,9 @@ class Lock {
   protected:
   Lock(SemaphoreHandle_t handle)
       : _handle(handle) {}
-  virtual ~Lock() { vSemaphoreDelete(_handle); }
+  virtual ~Lock() {
+    if (_handle) vSemaphoreDelete(_handle);
+  }
 
   SemaphoreHandle_t _handle;
 

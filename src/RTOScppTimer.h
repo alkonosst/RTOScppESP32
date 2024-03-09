@@ -18,7 +18,9 @@ class TimerBase {
   protected:
   TimerBase(TimerHandle_t handle)
       : _handle(handle) {}
-  virtual ~TimerBase() { xTimerDelete(_handle, portMAX_DELAY); }
+  virtual ~TimerBase() {
+    if (_handle) xTimerDelete(_handle, portMAX_DELAY);
+  }
 
   TimerHandle_t _handle;
 

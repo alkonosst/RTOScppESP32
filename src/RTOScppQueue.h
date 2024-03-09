@@ -21,8 +21,8 @@ bool operator==(const QueueSetMemberHandle_t& queue_set_member, const QueueBase<
 template <typename T>
 class QueueBase {
   private:
-  QueueBase(QueueBase const&)      = delete;
-  void operator=(QueueBase const&) = delete;
+  QueueBase(QueueBase const&)      = delete; // Delete copy constructor
+  void operator=(QueueBase const&) = delete; // Delete copy assignment operator
 
   friend bool operator==
     <>(const QueueSetMemberHandle_t& queue_set_member, const QueueBase<T>& queue);
@@ -30,17 +30,18 @@ class QueueBase {
   protected:
   QueueBase(QueueHandle_t handle)
       : _handle(handle) {}
-  ~QueueBase() { vQueueDelete(_handle); }
+  virtual ~QueueBase() {
+    if (_handle) vQueueDelete(_handle);
+  }
 
-  StaticQueue_t _tcb;
   QueueHandle_t _handle;
 
   public:
   QueueHandle_t getHandle() { return _handle; }
 
-  uint32_t availableMessages() { return uxQueueMessagesWaiting(_handle); }
-  uint32_t availableMessagesFromISR() { return uxQueueMessagesWaitingFromISR(_handle); }
-  uint32_t availableSpaces() { return uxQueueSpacesAvailable(_handle); }
+  uint32_t getAvailableMessages() { return uxQueueMessagesWaiting(_handle); }
+  uint32_t getAvailableMessagesFromISR() { return uxQueueMessagesWaitingFromISR(_handle); }
+  uint32_t getAvailableSpaces() { return uxQueueSpacesAvailable(_handle); }
   void reset() { xQueueReset(_handle); }
   bool isFull() { return uxQueueSpacesAvailable(_handle) == 0; }
   bool isEmpty() { return uxQueueMessagesWaiting(_handle) == 0; }
@@ -83,26 +84,37 @@ bool operator==(const QueueSetMemberHandle_t& queue_set_member, const QueueBase<
   return queue_set_member == queue._handle;
 }
 
-template <typename T, uint32_t LENGTH>
-class Queue : public QueueBase<T> {
+template <typename T>
+class QueueDynamic : public QueueBase<T> {
   public:
-  Queue()
+  QueueDynamic(uint32_t length)
+      : QueueBase<T>(xQueueCreate(length, sizeof(T))) {}
+};
+
+template <typename T, uint32_t LENGTH>
+class QueueStatic : public QueueBase<T> {
+  public:
+  QueueStatic()
       : QueueBase<T>(xQueueCreateStatic(LENGTH, sizeof(T), _storage, &this->_tcb)) {}
 
   private:
+  StaticQueue_t _tcb;
   uint8_t _storage[LENGTH * sizeof(T)];
 };
 
 template <typename T>
-class QueueExternalStorage : public QueueBase<T> {
+class QueueStaticExternalStorage : public QueueBase<T> {
   public:
-  QueueExternalStorage()
+  QueueStaticExternalStorage()
       : QueueBase<T>(nullptr) {}
 
   bool init(uint8_t* buffer, uint32_t buffer_size) {
     this->_handle = xQueueCreateStatic(buffer_size, sizeof(T), buffer, &this->_tcb);
     return this->_handle != nullptr ? true : false;
   }
+
+  private:
+  StaticQueue_t _tcb;
 };
 
 #endif // RTOS_CPP_QUEUE_H
