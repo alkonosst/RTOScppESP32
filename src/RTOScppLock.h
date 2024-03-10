@@ -8,6 +8,7 @@
 #define RTOS_CPP_LOCK_H
 
 #include <Arduino.h>
+#include <freertos/queue.h>
 #include <freertos/semphr.h>
 
 // Forward declaration of QueueSet
@@ -36,6 +37,8 @@ class LockBase {
   }
 
   virtual bool give() { return xSemaphoreGive(_handle); }
+
+  explicit operator bool() const { return _handle != nullptr; }
 };
 
 inline bool operator==(const QueueSetMemberHandle_t& queue_set_member, const LockBase& lock) {

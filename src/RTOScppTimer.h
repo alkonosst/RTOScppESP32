@@ -55,6 +55,8 @@ class TimerBase {
 
   void setReloadMode(bool auto_reload) { vTimerSetReloadMode(_handle, auto_reload); }
   bool getReloadMode() { return uxTimerGetReloadMode(_handle); }
+
+  explicit operator bool() const { return _handle != nullptr; }
 };
 
 class TimerDynamic : public TimerBase {

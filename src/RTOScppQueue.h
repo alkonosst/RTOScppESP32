@@ -27,6 +27,9 @@ class QueueInterface {
   }
 
   QueueHandle_t _handle;
+
+  public:
+  explicit operator bool() const { return _handle != nullptr; }
 };
 
 inline bool operator==(const QueueSetMemberHandle_t& queue_set_member,
@@ -105,9 +108,9 @@ class QueueStatic : public QueueBase<T> {
 };
 
 template <typename T>
-class QueueStaticExternalStorage : public QueueBase<T> {
+class QueueExternalStorage : public QueueBase<T> {
   public:
-  QueueStaticExternalStorage()
+  QueueExternalStorage()
       : QueueBase<T>(nullptr) {}
 
   bool init(uint8_t* buffer, uint32_t buffer_size) {

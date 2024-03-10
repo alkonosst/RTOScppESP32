@@ -74,6 +74,8 @@ class TaskBase {
   uint32_t notifyTake(bool clear, TickType_t ticks_to_wait = portMAX_DELAY) {
     return ulTaskNotifyTake(clear, ticks_to_wait);
   }
+
+  explicit operator bool() const { return _handle != nullptr; }
 };
 
 class TaskDynamic : public TaskBase {
