@@ -10,37 +10,48 @@
 #include <Arduino.h>
 #include <freertos/queue.h>
 
-// QueueBase forward declaration
-template <typename T>
-class QueueBase;
+// Forward declaration of QueueSet
+class QueueSet;
 
-// operator==<T> forward declaration
-template <typename T>
-bool operator==(const QueueSetMemberHandle_t& queue_set_member, const QueueBase<T>& queue);
-
-template <typename T>
-class QueueBase {
+class QueueInterface {
   private:
-  QueueBase(QueueBase const&)      = delete;
-  void operator=(QueueBase const&) = delete;
-
-  friend bool operator==
-    <>(const QueueSetMemberHandle_t& queue_set_member, const QueueBase<T>& queue);
+  friend class QueueSet;
+  friend bool operator==(const QueueSetMemberHandle_t& queue_set_member,
+                         const QueueInterface& queue);
 
   protected:
-  QueueBase(QueueHandle_t handle)
+  QueueInterface(QueueHandle_t handle)
       : _handle(handle) {}
-  ~QueueBase() { vQueueDelete(_handle); }
+  virtual ~QueueInterface() {
+    if (_handle) vQueueDelete(_handle);
+  }
 
-  StaticQueue_t _tcb;
   QueueHandle_t _handle;
 
   public:
-  QueueHandle_t getHandle() { return _handle; }
+  explicit operator bool() const { return _handle != nullptr; }
+};
 
-  uint32_t availableMessages() { return uxQueueMessagesWaiting(_handle); }
-  uint32_t availableMessagesFromISR() { return uxQueueMessagesWaitingFromISR(_handle); }
-  uint32_t availableSpaces() { return uxQueueSpacesAvailable(_handle); }
+inline bool operator==(const QueueSetMemberHandle_t& queue_set_member,
+                       const QueueInterface& queue) {
+  return queue_set_member == queue._handle;
+}
+
+template <typename T>
+class QueueBase : public QueueInterface {
+  private:
+  QueueBase(QueueBase const&)      = delete; // Delete copy constructor
+  void operator=(QueueBase const&) = delete; // Delete copy assignment operator
+
+  protected:
+  QueueBase(QueueHandle_t handle)
+      : QueueInterface(handle) {}
+  virtual ~QueueBase() {}
+
+  public:
+  uint32_t getAvailableMessages() { return uxQueueMessagesWaiting(_handle); }
+  uint32_t getAvailableMessagesFromISR() { return uxQueueMessagesWaitingFromISR(_handle); }
+  uint32_t getAvailableSpaces() { return uxQueueSpacesAvailable(_handle); }
   void reset() { xQueueReset(_handle); }
   bool isFull() { return uxQueueSpacesAvailable(_handle) == 0; }
   bool isEmpty() { return uxQueueMessagesWaiting(_handle) == 0; }
@@ -79,17 +90,20 @@ class QueueBase {
 };
 
 template <typename T>
-bool operator==(const QueueSetMemberHandle_t& queue_set_member, const QueueBase<T>& queue) {
-  return queue_set_member == queue._handle;
-}
+class QueueDynamic : public QueueBase<T> {
+  public:
+  QueueDynamic(uint32_t length)
+      : QueueBase<T>(xQueueCreate(length, sizeof(T))) {}
+};
 
 template <typename T, uint32_t LENGTH>
-class Queue : public QueueBase<T> {
+class QueueStatic : public QueueBase<T> {
   public:
-  Queue()
+  QueueStatic()
       : QueueBase<T>(xQueueCreateStatic(LENGTH, sizeof(T), _storage, &this->_tcb)) {}
 
   private:
+  StaticQueue_t _tcb;
   uint8_t _storage[LENGTH * sizeof(T)];
 };
 
@@ -103,6 +117,9 @@ class QueueExternalStorage : public QueueBase<T> {
     this->_handle = xQueueCreateStatic(buffer_size, sizeof(T), buffer, &this->_tcb);
     return this->_handle != nullptr ? true : false;
   }
+
+  private:
+  StaticQueue_t _tcb;
 };
 
 #endif // RTOS_CPP_QUEUE_H

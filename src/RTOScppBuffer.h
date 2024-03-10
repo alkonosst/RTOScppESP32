@@ -11,18 +11,17 @@
 #include <freertos/message_buffer.h>
 #include <freertos/stream_buffer.h>
 
-class DataBuffer {
+class DataBufferBase {
   private:
-  DataBuffer(const DataBuffer&)     = delete;
-  void operator=(const DataBuffer&) = delete;
+  DataBufferBase(const DataBufferBase&) = delete; // Delete copy constructor
+  void operator=(const DataBufferBase&) = delete; // Delete copy assignment operator
 
   protected:
-  DataBuffer(StreamBufferHandle_t handle)
+  DataBufferBase(StreamBufferHandle_t handle)
       : _handle(handle) {}
-  ~DataBuffer() { vStreamBufferDelete(_handle); }
+  virtual ~DataBufferBase() { vStreamBufferDelete(_handle); }
 
   StreamBufferHandle_t _handle;
-  StaticStreamBuffer_t _tcb;
 
   public:
   uint32_t send(const void* tx_buffer, uint32_t bytes, TickType_t ticks_to_wait = portMAX_DELAY) {
@@ -45,29 +44,37 @@ class DataBuffer {
   bool isEmpty() { return xStreamBufferIsEmpty(_handle); }
   bool isFull() { return xStreamBufferIsFull(_handle); }
   uint32_t availableSpaces() { return xStreamBufferSpacesAvailable(_handle); }
-};
-
-template <uint32_t LENGTH>
-class StreamBuffer : public DataBuffer {
-  public:
-  StreamBuffer(uint32_t trigger_bytes)
-      : DataBuffer(
-          xStreamBufferGenericCreateStatic(LENGTH + 1, trigger_bytes, pdFALSE, _storage, &_tcb)) {}
-
   uint32_t availableBytes() { return xStreamBufferBytesAvailable(_handle); }
 
   bool setTriggerLevel(uint32_t trigger_bytes) {
     return xStreamBufferSetTriggerLevel(_handle, trigger_bytes);
   }
 
-  private:
-  uint8_t _storage[LENGTH + 1];
+  explicit operator bool() const { return _handle != nullptr; }
 };
 
-class StreamBufferExternalStorage : public DataBuffer {
+class StreamBufferDynamic : public DataBufferBase {
   public:
-  StreamBufferExternalStorage()
-      : DataBuffer(nullptr) {}
+  StreamBufferDynamic(uint32_t buffer_size, uint32_t trigger_bytes)
+      : DataBufferBase(xStreamBufferGenericCreate(buffer_size + 1, trigger_bytes, false)) {}
+};
+
+template <uint32_t BUFFER_SIZE>
+class StreamBufferStatic : public DataBufferBase {
+  public:
+  StreamBufferStatic(uint32_t trigger_bytes)
+      : DataBufferBase(xStreamBufferGenericCreateStatic(BUFFER_SIZE + 1, trigger_bytes, false,
+                                                        _storage, &_tcb)) {}
+
+  private:
+  StaticStreamBuffer_t _tcb;
+  uint8_t _storage[BUFFER_SIZE + 1];
+};
+
+class StreamBufferExternalStorage : public DataBufferBase {
+  public:
+  StreamBufferExternalStorage(uint32_t trigger_bytes)
+      : DataBufferBase(nullptr) {}
 
   bool init(uint32_t trigger_bytes, uint8_t* buffer, uint32_t buffer_size) {
     _handle =
@@ -75,32 +82,40 @@ class StreamBufferExternalStorage : public DataBuffer {
     return _handle != nullptr ? true : false;
   }
 
-  uint32_t availableBytes() { return xStreamBufferBytesAvailable(_handle); }
-
-  bool setTriggerLevel(uint32_t trigger_bytes) {
-    return xStreamBufferSetTriggerLevel(_handle, trigger_bytes);
-  }
+  private:
+  StaticStreamBuffer_t _tcb;
 };
 
-template <uint32_t LENGTH>
-class MessageBuffer : public DataBuffer {
+class MessageBufferDynamic : public DataBufferBase {
   public:
-  MessageBuffer()
-      : DataBuffer(xStreamBufferGenericCreateStatic(LENGTH + 1, 0, pdTRUE, _storage, &_tcb)) {}
+  MessageBufferDynamic(uint32_t buffer_size)
+      : DataBufferBase(xStreamBufferGenericCreate(buffer_size + 1, 0, false)) {}
+};
+
+template <uint32_t BUFFER_SIZE>
+class MessageBufferStatic : public DataBufferBase {
+  public:
+  MessageBufferStatic()
+      : DataBufferBase(
+          xStreamBufferGenericCreateStatic(BUFFER_SIZE + 1, 0, false, _storage, &_tcb)) {}
 
   private:
-  uint8_t _storage[LENGTH + 1];
+  StaticStreamBuffer_t _tcb;
+  uint8_t _storage[BUFFER_SIZE + 1];
 };
 
-class MessageBufferExternalStorage : public DataBuffer {
+class MessageBufferExternalStorage : public DataBufferBase {
   public:
   MessageBufferExternalStorage()
-      : DataBuffer(nullptr) {}
+      : DataBufferBase(nullptr) {}
 
-  bool init(uint8_t* buffer, uint32_t buffer_size) {
-    _handle = xStreamBufferGenericCreateStatic(buffer_size + 1, 0, pdTRUE, buffer, &_tcb);
+  bool init(uint32_t trigger_bytes, uint8_t* buffer, uint32_t buffer_size) {
+    _handle = xStreamBufferGenericCreateStatic(buffer_size + 1, 0, true, buffer, &_tcb);
     return _handle != nullptr ? true : false;
   }
+
+  private:
+  StaticStreamBuffer_t _tcb;
 };
 
 #endif // RTOS_CPP_BUFFER_H

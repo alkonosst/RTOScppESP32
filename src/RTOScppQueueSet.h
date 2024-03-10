@@ -16,25 +16,34 @@ class QueueSet {
   public:
   QueueSet(const uint8_t queue_length)
       : _handle(xQueueCreateSet(queue_length)) {}
-  ~QueueSet() { vQueueDelete(_handle); }
-
-  bool add(QueueSetMemberHandle_t queue_or_semaphore) {
-    return xQueueAddToSet(queue_or_semaphore, _handle);
+  ~QueueSet() {
+    if (_handle) vQueueDelete(_handle);
   }
 
-  bool add(RingbufHandle_t ring_buffer) {
-    return xRingbufferAddToQueueSetRead(ring_buffer, _handle);
+  bool add(LockBase& lock) { return xQueueAddToSet(lock._handle, _handle); }
+  bool add(QueueInterface& queue) { return xQueueAddToSet(queue._handle, _handle); }
+  bool add(RingBufferInterface& ring_buffer) {
+    return xRingbufferAddToQueueSetRead(ring_buffer._handle, _handle);
+  }
+
+  bool remove(LockBase& lock) { return xQueueRemoveFromSet(lock._handle, _handle); }
+  bool remove(QueueInterface& queue) { return xQueueRemoveFromSet(queue._handle, _handle); }
+  bool remove(RingBufferInterface& ring_buffer) {
+    return xRingbufferRemoveFromQueueSetRead(ring_buffer._handle, _handle);
   }
 
   QueueSetMemberHandle_t select(TickType_t ticks_to_wait = portMAX_DELAY) {
     return xQueueSelectFromSet(_handle, ticks_to_wait);
   }
+  QueueSetMemberHandle_t selectFromISR() { return xQueueSelectFromSetFromISR(_handle); }
+
+  explicit operator bool() const { return _handle != nullptr; }
 
   private:
   QueueSetHandle_t _handle;
 
-  QueueSet(const QueueSet&)            = delete;
-  QueueSet& operator=(const QueueSet&) = delete;
+  QueueSet(const QueueSet&)       = delete; // Delete copy constructor
+  void operator=(const QueueSet&) = delete; // Delete copy assignment operator
 };
 
 #endif // RTOS_CPP_QUEUE_SET_H
