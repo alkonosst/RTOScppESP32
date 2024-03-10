@@ -22,13 +22,13 @@ class QueueSet {
 
   bool add(LockBase& lock) { return xQueueAddToSet(lock._handle, _handle); }
   bool add(QueueInterface& queue) { return xQueueAddToSet(queue._handle, _handle); }
-  bool add(RingBufferBase& ring_buffer) {
+  bool add(RingBufferInterface& ring_buffer) {
     return xRingbufferAddToQueueSetRead(ring_buffer._handle, _handle);
   }
 
   bool remove(LockBase& lock) { return xQueueRemoveFromSet(lock._handle, _handle); }
   bool remove(QueueInterface& queue) { return xQueueRemoveFromSet(queue._handle, _handle); }
-  bool remove(RingBufferBase& ring_buffer) {
+  bool remove(RingBufferInterface& ring_buffer) {
     return xRingbufferRemoveFromQueueSetRead(ring_buffer._handle, _handle);
   }
 
@@ -36,6 +36,8 @@ class QueueSet {
     return xQueueSelectFromSet(_handle, ticks_to_wait);
   }
   QueueSetMemberHandle_t selectFromISR() { return xQueueSelectFromSetFromISR(_handle); }
+
+  explicit operator bool() const { return _handle != nullptr; }
 
   private:
   QueueSetHandle_t _handle;
