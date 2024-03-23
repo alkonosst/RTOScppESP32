@@ -23,8 +23,26 @@ class TimerBase {
   }
 
   TimerHandle_t _handle;
+  const char* _name;
+  TimerCallbackFunction_t _callback;
+  TickType_t _period;
+  void* _id;
+  bool _auto_reload;
+  bool _start;
 
   public:
+  void setup(const char* name, TimerCallbackFunction_t callback, TickType_t period, void* id,
+             bool auto_reload, bool start) {
+    _name        = name;
+    _callback    = callback;
+    _period      = period;
+    _id          = id;
+    _auto_reload = auto_reload;
+    _start       = start;
+  }
+
+  virtual bool create(bool start) = 0;
+
   bool start(TickType_t ticks_to_wait = portMAX_DELAY) {
     return xTimerStart(_handle, ticks_to_wait);
   }
@@ -53,6 +71,9 @@ class TimerBase {
 
   TickType_t getPeriod() { return xTimerGetPeriod(_handle); }
 
+  void setTimerID() { vTimerSetTimerID(_handle, _id); }
+  void* getTimerID() { return pvTimerGetTimerID(_handle); }
+
   void setReloadMode(bool auto_reload) { vTimerSetReloadMode(_handle, auto_reload); }
   bool getReloadMode() { return uxTimerGetReloadMode(_handle); }
 
@@ -61,19 +82,39 @@ class TimerBase {
 
 class TimerDynamic : public TimerBase {
   public:
-  TimerDynamic(const char* name, TimerCallbackFunction_t callback, TickType_t period,
+  TimerDynamic()
+      : TimerBase(nullptr) {}
+
+  TimerDynamic(const char* name, TimerCallbackFunction_t callback, TickType_t period, void* id,
                bool auto_reload, bool start)
-      : TimerBase(xTimerCreate(name, period, auto_reload, 0, callback)) {
+      : TimerBase(xTimerCreate(name, period, auto_reload, id, callback)) {
+    this->setup(name, callback, period, id, auto_reload, start);
     if (start) this->start();
+  }
+
+  bool create(bool start) {
+    _handle = xTimerCreate(_name, _period, _auto_reload, _id, _callback);
+    if (_handle == nullptr) return false;
+    return start ? this->start() : true;
   }
 };
 
 class TimerStatic : public TimerBase {
   public:
-  TimerStatic(const char* name, TimerCallbackFunction_t callback, TickType_t period,
+  TimerStatic()
+      : TimerBase(nullptr) {}
+
+  TimerStatic(const char* name, TimerCallbackFunction_t callback, TickType_t period, void* id,
               bool auto_reload, bool start)
-      : TimerBase(xTimerCreateStatic(name, period, auto_reload, 0, callback, &_tcb)) {
+      : TimerBase(xTimerCreateStatic(name, period, auto_reload, id, callback, &_tcb)) {
+    this->setup(name, callback, period, id, auto_reload, start);
     if (start) this->start();
+  }
+
+  bool create(bool start) {
+    _handle = xTimerCreateStatic(_name, _period, _auto_reload, _id, _callback, &_tcb);
+    if (_handle == nullptr) return false;
+    return start ? this->start() : true;
   }
 
   private:
