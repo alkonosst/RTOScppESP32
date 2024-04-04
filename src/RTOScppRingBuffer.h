@@ -82,25 +82,34 @@ class RingBufferNoSplitBase : public RingBufferBase<T> {
 template <typename T>
 class RingBufferNoSplitDynamic : public RingBufferNoSplitBase<T> {
   public:
-  RingBufferNoSplitDynamic(uint32_t buffer_size)
-      : RingBufferNoSplitBase<T>(xRingbufferCreate(buffer_size, RINGBUF_TYPE_NOSPLIT)) {}
+  // Size aligned to nearest 4 bytes + 8 bytes per item
+  static constexpr uint32_t ALIGNED_SIZE = 4 * ((sizeof(T) + 3) / 4) + 8;
+
+  RingBufferNoSplitDynamic(uint32_t length)
+      : RingBufferNoSplitBase<T>(xRingbufferCreate(length * ALIGNED_SIZE, RINGBUF_TYPE_NOSPLIT)) {}
 };
 
-template <typename T, uint32_t BUFFER_SIZE>
+template <typename T, uint32_t LENGTH>
 class RingBufferNoSplitStatic : public RingBufferNoSplitBase<T> {
   public:
+  // Size aligned to nearest 4 bytes + 8 bytes per item
+  static constexpr uint32_t ALIGNED_SIZE = 4 * ((sizeof(T) + 3) / 4) + 8;
+
   RingBufferNoSplitStatic()
       : RingBufferNoSplitBase<T>(
-          xRingbufferCreateStatic(BUFFER_SIZE, RINGBUF_TYPE_NOSPLIT, _storage, &_tcb)) {}
+          xRingbufferCreateStatic(LENGTH * ALIGNED_SIZE, RINGBUF_TYPE_NOSPLIT, _storage, &_tcb)) {}
 
   private:
   StaticRingbuffer_t _tcb;
-  uint8_t _storage[BUFFER_SIZE];
+  uint8_t _storage[LENGTH * ALIGNED_SIZE];
 };
 
 template <typename T>
 class RingBufferNoSplitExternalStorage : public RingBufferNoSplitBase<T> {
   public:
+  // Size aligned to nearest 4 bytes + 8 bytes per item
+  static constexpr uint32_t ALIGNED_SIZE = 4 * ((sizeof(T) + 3) / 4) + 8;
+
   RingBufferNoSplitExternalStorage()
       : RingBufferNoSplitBase<T>(nullptr) {}
 
@@ -133,25 +142,34 @@ class RingBufferSplitBase : public RingBufferBase<T> {
 template <typename T>
 class RingBufferSplitDynamic : public RingBufferSplitBase<T> {
   public:
-  RingBufferSplitDynamic(uint32_t buffer_size)
-      : RingBufferSplitBase<T>(xRingbufferCreate(buffer_size, RINGBUF_TYPE_ALLOWSPLIT)) {}
+  // Size aligned to nearest 4 bytes + 8 bytes per item
+  static constexpr uint32_t ALIGNED_SIZE = 4 * ((sizeof(T) + 3) / 4) + 8;
+
+  RingBufferSplitDynamic(uint32_t length)
+      : RingBufferSplitBase<T>(xRingbufferCreate(length * ALIGNED_SIZE, RINGBUF_TYPE_ALLOWSPLIT)) {}
 };
 
-template <typename T, uint32_t BUFFER_SIZE>
+template <typename T, uint32_t LENGTH>
 class RingBufferSplitStatic : public RingBufferSplitBase<T> {
   public:
+  // Size aligned to nearest 4 bytes + 8 bytes per item
+  static constexpr uint32_t ALIGNED_SIZE = 4 * ((sizeof(T) + 3) / 4) + 8;
+
   RingBufferSplitStatic()
-      : RingBufferSplitBase<T>(
-          xRingbufferCreateStatic(BUFFER_SIZE, RINGBUF_TYPE_ALLOWSPLIT, _storage, &_tcb)) {}
+      : RingBufferSplitBase<T>(xRingbufferCreateStatic(LENGTH * ALIGNED_SIZE,
+                                                       RINGBUF_TYPE_ALLOWSPLIT, _storage, &_tcb)) {}
 
   private:
   StaticRingbuffer_t _tcb;
-  uint8_t _storage[BUFFER_SIZE];
+  uint8_t _storage[LENGTH * ALIGNED_SIZE];
 };
 
 template <typename T>
 class RingBufferSplitExternalStorage : public RingBufferSplitBase<T> {
   public:
+  // Size aligned to nearest 4 bytes + 8 bytes per item
+  static constexpr uint32_t ALIGNED_SIZE = 4 * ((sizeof(T) + 3) / 4) + 8;
+
   RingBufferSplitExternalStorage()
       : RingBufferSplitBase<T>(nullptr) {}
 
@@ -183,20 +201,20 @@ class RingBufferByteBase : public RingBufferBase<T> {
 template <typename T>
 class RingBufferByteDynamic : public RingBufferByteBase<T> {
   public:
-  RingBufferByteDynamic(uint32_t buffer_size)
-      : RingBufferByteBase<T>(xRingbufferCreate(buffer_size, RINGBUF_TYPE_BYTEBUF)) {}
+  RingBufferByteDynamic(uint32_t length)
+      : RingBufferByteBase<T>(xRingbufferCreate(length, RINGBUF_TYPE_BYTEBUF)) {}
 };
 
-template <typename T, uint32_t BUFFER_SIZE>
+template <typename T, uint32_t LENGTH>
 class RingBufferByteStatic : public RingBufferByteBase<T> {
   public:
   RingBufferByteStatic()
       : RingBufferByteBase<T>(
-          xRingbufferCreateStatic(BUFFER_SIZE, RINGBUF_TYPE_BYTEBUF, _storage, &_tcb)) {}
+          xRingbufferCreateStatic(LENGTH, RINGBUF_TYPE_BYTEBUF, _storage, &_tcb)) {}
 
   private:
   StaticRingbuffer_t _tcb;
-  uint8_t _storage[BUFFER_SIZE];
+  uint8_t _storage[LENGTH];
 };
 
 template <typename T>
