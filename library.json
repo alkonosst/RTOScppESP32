@@ -1,6 +1,6 @@
 {
   "name": "RTOScppESP32",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/alkonosst/RTOScppESP32.git"
