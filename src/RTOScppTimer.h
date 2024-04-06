@@ -41,7 +41,7 @@ class TimerBase {
     _start       = start;
   }
 
-  virtual bool create(bool start) = 0;
+  virtual bool create() = 0;
 
   bool start(TickType_t ticks_to_wait = portMAX_DELAY) {
     return xTimerStart(_handle, ticks_to_wait);
@@ -92,10 +92,10 @@ class TimerDynamic : public TimerBase {
     if (start) this->start();
   }
 
-  bool create(bool start) {
+  bool create() {
     _handle = xTimerCreate(_name, _period, _auto_reload, _id, _callback);
     if (_handle == nullptr) return false;
-    return start ? this->start() : true;
+    return _start ? this->start() : true;
   }
 };
 
@@ -111,10 +111,10 @@ class TimerStatic : public TimerBase {
     if (start) this->start();
   }
 
-  bool create(bool start) {
+  bool create() {
     _handle = xTimerCreateStatic(_name, _period, _auto_reload, _id, _callback, &_tcb);
     if (_handle == nullptr) return false;
-    return start ? this->start() : true;
+    return _start ? this->start() : true;
   }
 
   private:
