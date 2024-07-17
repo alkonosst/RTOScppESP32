@@ -11,7 +11,7 @@
 
 class TaskInterface {
   protected:
-  TaskInterface(const char* name, TaskFunction_t function, const uint8_t priority,
+  TaskInterface(const char* name, const TaskFunction_t function, const uint8_t priority,
                 const uint32_t stack_size, const BaseType_t running_core)
       : _name(name)
       , _function(function)
@@ -24,7 +24,7 @@ class TaskInterface {
       , _stack_max(0) {}
 
   const char* _name;
-  TaskFunction_t _function;
+  const TaskFunction_t _function;
   uint8_t _priority;
   const uint32_t _stack_size;
   const BaseType_t _running_core;
