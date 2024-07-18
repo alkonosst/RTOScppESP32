@@ -1,11 +1,10 @@
 /**
- * SPDX-FileCopyrightText: 2023 Maximiliano Ramirez
+ * SPDX-FileCopyrightText: 2024 Maximiliano Ramirez
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#ifndef RTOS_CPP_QUEUE_SET_H
-#define RTOS_CPP_QUEUE_SET_H
+#pragma once
 
 #include "RTOScppLock.h"
 #include "RTOScppQueue.h"
@@ -14,36 +13,37 @@
 
 class QueueSet {
   public:
-  QueueSet(const uint8_t queue_length)
+  QueueSet(const uint32_t queue_length)
       : _handle(xQueueCreateSet(queue_length)) {}
+
   ~QueueSet() {
     if (_handle) vQueueDelete(_handle);
   }
 
-  bool add(LockBase& lock) { return xQueueAddToSet(lock._handle, _handle); }
-  bool add(QueueInterface& queue) { return xQueueAddToSet(queue._handle, _handle); }
-  bool add(RingBufferInterface& ring_buffer) {
+  QueueSet(const QueueSet&)                = delete;
+  QueueSet& operator=(const QueueSet&)     = delete;
+  QueueSet(QueueSet&&) noexcept            = delete;
+  QueueSet& operator=(QueueSet&&) noexcept = delete;
+
+  bool add(LockInterface& lock) const { return xQueueAddToSet(lock._handle, _handle); }
+  bool add(QueueInterface& queue) const { return xQueueAddToSet(queue._handle, _handle); }
+  bool add(RingBufferInterface& ring_buffer) const {
     return xRingbufferAddToQueueSetRead(ring_buffer._handle, _handle);
   }
 
-  bool remove(LockBase& lock) { return xQueueRemoveFromSet(lock._handle, _handle); }
-  bool remove(QueueInterface& queue) { return xQueueRemoveFromSet(queue._handle, _handle); }
-  bool remove(RingBufferInterface& ring_buffer) {
+  bool remove(LockInterface& lock) const { return xQueueRemoveFromSet(lock._handle, _handle); }
+  bool remove(QueueInterface& queue) const { return xQueueRemoveFromSet(queue._handle, _handle); }
+  bool remove(RingBufferInterface& ring_buffer) const {
     return xRingbufferRemoveFromQueueSetRead(ring_buffer._handle, _handle);
   }
 
-  QueueSetMemberHandle_t select(TickType_t ticks_to_wait = portMAX_DELAY) {
+  QueueSetMemberHandle_t select(const TickType_t ticks_to_wait = portMAX_DELAY) const {
     return xQueueSelectFromSet(_handle, ticks_to_wait);
   }
-  QueueSetMemberHandle_t selectFromISR() { return xQueueSelectFromSetFromISR(_handle); }
+  QueueSetMemberHandle_t selectFromISR() const { return xQueueSelectFromSetFromISR(_handle); }
 
   explicit operator bool() const { return _handle != nullptr; }
 
   private:
   QueueSetHandle_t _handle;
-
-  QueueSet(const QueueSet&)       = delete; // Delete copy constructor
-  void operator=(const QueueSet&) = delete; // Delete copy assignment operator
 };
-
-#endif // RTOS_CPP_QUEUE_SET_H

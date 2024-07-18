@@ -1,11 +1,10 @@
 /**
- * SPDX-FileCopyrightText: 2023 Maximiliano Ramirez
+ * SPDX-FileCopyrightText: 2024 Maximiliano Ramirez
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#ifndef RTOS_CPP_QUEUE_H
-#define RTOS_CPP_QUEUE_H
+#pragma once
 
 #include <Arduino.h>
 #include <freertos/queue.h>
@@ -22,13 +21,31 @@ class QueueInterface {
   protected:
   QueueInterface(QueueHandle_t handle)
       : _handle(handle) {}
-  virtual ~QueueInterface() {
-    if (_handle) vQueueDelete(_handle);
-  }
 
   QueueHandle_t _handle;
 
   public:
+  virtual ~QueueInterface() {
+    if (_handle) vTaskDelete(_handle);
+  }
+
+  QueueInterface(const QueueInterface&)                = delete;
+  QueueInterface& operator=(const QueueInterface&)     = delete;
+  QueueInterface(QueueInterface&&) noexcept            = delete;
+  QueueInterface& operator=(QueueInterface&&) noexcept = delete;
+
+  QueueHandle_t getHandle() const { return _handle; }
+
+  uint32_t getAvailableMessages() const { return uxQueueMessagesWaiting(_handle); }
+  uint32_t getAvailableMessagesFromISR() const { return uxQueueMessagesWaitingFromISR(_handle); }
+  uint32_t getAvailableSpaces() const { return uxQueueSpacesAvailable(_handle); }
+
+  void reset() const { xQueueReset(_handle); }
+  bool isFull() const { return uxQueueSpacesAvailable(_handle) == 0; }
+  bool isEmpty() const { return uxQueueMessagesWaiting(_handle) == 0; }
+  bool isFullFromISR() const { return xQueueIsQueueFullFromISR(_handle); }
+  bool isEmptyFromISR() const { return xQueueIsQueueEmptyFromISR(_handle); }
+
   explicit operator bool() const { return _handle != nullptr; }
 };
 
@@ -38,69 +55,55 @@ inline bool operator==(const QueueSetMemberHandle_t& queue_set_member,
 }
 
 template <typename T>
-class QueueBase : public QueueInterface {
-  private:
-  QueueBase(QueueBase const&)      = delete; // Delete copy constructor
-  void operator=(QueueBase const&) = delete; // Delete copy assignment operator
-
+class _QueueBase : public QueueInterface {
   protected:
-  QueueBase(QueueHandle_t handle)
+  _QueueBase(QueueHandle_t handle)
       : QueueInterface(handle) {}
-  virtual ~QueueBase() {}
 
   public:
-  uint32_t getAvailableMessages() { return uxQueueMessagesWaiting(_handle); }
-  uint32_t getAvailableMessagesFromISR() { return uxQueueMessagesWaitingFromISR(_handle); }
-  uint32_t getAvailableSpaces() { return uxQueueSpacesAvailable(_handle); }
-  void reset() { xQueueReset(_handle); }
-  bool isFull() { return uxQueueSpacesAvailable(_handle) == 0; }
-  bool isEmpty() { return uxQueueMessagesWaiting(_handle) == 0; }
-  bool isFullFromISR() { return xQueueIsQueueFullFromISR(_handle); }
-  bool isEmptyFromISR() { return xQueueIsQueueEmptyFromISR(_handle); }
-
-  bool push(const T& item, TickType_t ticks_to_wait = portMAX_DELAY) {
+  bool push(const T& item, const TickType_t ticks_to_wait = portMAX_DELAY) const {
     return xQueueSendToFront(_handle, &item, ticks_to_wait);
   }
 
-  bool add(const T& item, TickType_t ticks_to_wait = portMAX_DELAY) {
+  bool add(const T& item, const TickType_t ticks_to_wait = portMAX_DELAY) const {
     return xQueueSendToBack(_handle, &item, ticks_to_wait);
   }
 
-  bool pop(T& var, TickType_t ticks_to_wait = portMAX_DELAY) {
+  bool pop(T& var, const TickType_t ticks_to_wait = portMAX_DELAY) const {
     return xQueueReceive(_handle, &var, ticks_to_wait);
   }
 
-  bool peek(T& var, TickType_t ticks_to_wait = 0) {
+  bool peek(T& var, const TickType_t ticks_to_wait = 0) const {
     return xQueuePeek(_handle, &var, ticks_to_wait);
   }
 
-  bool pushFromISR(const T& item, BaseType_t& task_woken) {
+  bool pushFromISR(const T& item, BaseType_t& task_woken) const {
     return xQueueSendToFrontFromISR(_handle, &item, &task_woken);
   }
 
-  bool addFromISR(const T& item, BaseType_t& task_woken) {
+  bool addFromISR(const T& item, BaseType_t& task_woken) const {
     return xQueueSendToBackFromISR(_handle, &item, &task_woken);
   }
 
-  bool popFromISR(T& var, BaseType_t& task_woken) {
+  bool popFromISR(T& var, BaseType_t& task_woken) const {
     return xQueueReceiveFromISR(_handle, &var, &task_woken);
   }
 
-  bool peekFromISR(T& var) { return xQueuePeekFromISR(_handle, &var); }
+  bool peekFromISR(T& var) const { return xQueuePeekFromISR(_handle, &var); }
 };
 
 template <typename T>
-class QueueDynamic : public QueueBase<T> {
+class QueueDynamic : public _QueueBase<T> {
   public:
-  QueueDynamic(uint32_t length)
-      : QueueBase<T>(xQueueCreate(length, sizeof(T))) {}
+  QueueDynamic(const uint32_t length)
+      : _QueueBase<T>(xQueueCreate(length, sizeof(T))) {}
 };
 
 template <typename T, uint32_t LENGTH>
-class QueueStatic : public QueueBase<T> {
+class QueueStatic : public _QueueBase<T> {
   public:
   QueueStatic()
-      : QueueBase<T>(xQueueCreateStatic(LENGTH, sizeof(T), _storage, &this->_tcb)) {}
+      : _QueueBase<T>(xQueueCreateStatic(LENGTH, sizeof(T), _storage, &this->_tcb)) {}
 
   private:
   StaticQueue_t _tcb;
@@ -108,18 +111,16 @@ class QueueStatic : public QueueBase<T> {
 };
 
 template <typename T>
-class QueueExternalStorage : public QueueBase<T> {
+class QueueExternalStorage : public _QueueBase<T> {
   public:
   QueueExternalStorage()
-      : QueueBase<T>(nullptr) {}
+      : _QueueBase<T>(nullptr) {}
 
-  bool init(uint8_t* buffer, uint32_t buffer_size) {
-    this->_handle = xQueueCreateStatic(buffer_size, sizeof(T), buffer, &this->_tcb);
-    return this->_handle != nullptr ? true : false;
+  bool init(uint8_t* const buffer, const uint32_t length) {
+    this->_handle = xQueueCreateStatic(length, sizeof(T), buffer, &this->_tcb);
+    return (this->_handle != nullptr);
   }
 
   private:
   StaticQueue_t _tcb;
 };
-
-#endif // RTOS_CPP_QUEUE_H
