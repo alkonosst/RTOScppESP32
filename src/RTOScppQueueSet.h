@@ -25,14 +25,14 @@ class QueueSet {
   QueueSet(QueueSet&&) noexcept            = delete;
   QueueSet& operator=(QueueSet&&) noexcept = delete;
 
-  bool add(LockBase& lock) const { return xQueueAddToSet(lock._handle, _handle); }
-  bool add(QueueSet& queue) const { return xQueueAddToSet(queue._handle, _handle); }
+  bool add(LockInterface& lock) const { return xQueueAddToSet(lock._handle, _handle); }
+  bool add(QueueInterface& queue) const { return xQueueAddToSet(queue._handle, _handle); }
   bool add(RingBufferInterface& ring_buffer) const {
     return xRingbufferAddToQueueSetRead(ring_buffer._handle, _handle);
   }
 
-  bool remove(LockBase& lock) const { return xQueueRemoveFromSet(lock._handle, _handle); }
-  bool remove(QueueSet& queue) const { return xQueueRemoveFromSet(queue._handle, _handle); }
+  bool remove(LockInterface& lock) const { return xQueueRemoveFromSet(lock._handle, _handle); }
+  bool remove(QueueInterface& queue) const { return xQueueRemoveFromSet(queue._handle, _handle); }
   bool remove(RingBufferInterface& ring_buffer) const {
     return xRingbufferRemoveFromQueueSetRead(ring_buffer._handle, _handle);
   }
