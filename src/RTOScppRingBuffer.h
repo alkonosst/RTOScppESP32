@@ -119,7 +119,7 @@ class RingBufferNoSplitExternalStorage : public RingBufferNoSplitBase<T> {
       : RingBufferNoSplitBase<T>(nullptr) {}
 
   bool create(StaticRingbuffer_t* const tcb, uint8_t* const buffer_storage,
-              const uint32_t buffer_size) const {
+              const uint32_t buffer_size) {
     this->_handle = xRingbufferCreateStatic(buffer_size, RINGBUF_TYPE_NOSPLIT, buffer_storage, tcb);
     return this->_handle != nullptr ? true : false;
   }
@@ -180,7 +180,7 @@ class RingBufferSplitExternalStorage : public RingBufferSplitBase<T> {
   RingBufferSplitExternalStorage()
       : RingBufferSplitBase<T>(nullptr) {}
 
-  bool create(StaticRingbuffer_t* tcb, uint8_t* buffer_storage, uint32_t buffer_size) const {
+  bool create(StaticRingbuffer_t* tcb, uint8_t* buffer_storage, uint32_t buffer_size) {
     this->_handle =
       xRingbufferCreateStatic(buffer_size, RINGBUF_TYPE_ALLOWSPLIT, buffer_storage, tcb);
     return this->_handle != nullptr ? true : false;
@@ -231,7 +231,7 @@ class RingBufferByteExternalStorage : public RingBufferByteBase<T> {
       : RingBufferByteBase<T>(nullptr) {}
 
   bool create(StaticRingbuffer_t* const tcb, uint8_t* const buffer_storage,
-              const uint32_t buffer_size) const {
+              const uint32_t buffer_size) {
     this->_handle = xRingbufferCreateStatic(buffer_size, RINGBUF_TYPE_BYTEBUF, buffer_storage, tcb);
     return this->_handle != nullptr ? true : false;
   }
