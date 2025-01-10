@@ -9,118 +9,160 @@
 #include <Arduino.h>
 #include <freertos/queue.h>
 
-// Forward declaration of QueueSet
-class QueueSet;
+namespace RTOS::Queue {
 
-class QueueInterface {
-  private:
-  friend class QueueSet;
-  friend bool operator==(const QueueSetMemberHandle_t& queue_set_member,
-                         const QueueInterface& queue);
-
+// Interface for Queue objects, useful when using pointers
+class IQueue {
   protected:
-  QueueInterface(QueueHandle_t handle)
-      : _handle(handle) {}
-
-  QueueHandle_t _handle;
+  IQueue() = default;
 
   public:
-  virtual ~QueueInterface() {
-    if (_handle) vTaskDelete(_handle);
-  }
+  IQueue(const IQueue&)            = delete;
+  IQueue& operator=(const IQueue&) = delete;
+  IQueue(IQueue&&)                 = delete;
+  IQueue& operator=(IQueue&&)      = delete;
 
-  QueueInterface(const QueueInterface&)                = delete;
-  QueueInterface& operator=(const QueueInterface&)     = delete;
-  QueueInterface(QueueInterface&&) noexcept            = delete;
-  QueueInterface& operator=(QueueInterface&&) noexcept = delete;
+  virtual ~IQueue() = default;
 
+  virtual QueueHandle_t getHandle() const = 0;
+
+  virtual uint32_t getAvailableMessages() const        = 0;
+  virtual uint32_t getAvailableMessagesFromISR() const = 0;
+  virtual uint32_t getAvailableSpaces() const          = 0;
+
+  virtual void reset() const          = 0;
+  virtual bool isFull() const         = 0;
+  virtual bool isEmpty() const        = 0;
+  virtual bool isFullFromISR() const  = 0;
+  virtual bool isEmptyFromISR() const = 0;
+
+  virtual explicit operator bool() const = 0;
+};
+
+namespace Internal {
+
+// CRTP base class template
+template <typename Derived, typename T>
+class Policy {
+  public:
   QueueHandle_t getHandle() const { return _handle; }
 
-  uint32_t getAvailableMessages() const { return uxQueueMessagesWaiting(_handle); }
-  uint32_t getAvailableMessagesFromISR() const { return uxQueueMessagesWaitingFromISR(_handle); }
-  uint32_t getAvailableSpaces() const { return uxQueueSpacesAvailable(_handle); }
-
-  void reset() const { xQueueReset(_handle); }
-  bool isFull() const { return uxQueueSpacesAvailable(_handle) == 0; }
-  bool isEmpty() const { return uxQueueMessagesWaiting(_handle) == 0; }
-  bool isFullFromISR() const { return xQueueIsQueueFullFromISR(_handle); }
-  bool isEmptyFromISR() const { return xQueueIsQueueEmptyFromISR(_handle); }
-
-  explicit operator bool() const { return _handle != nullptr; }
-};
-
-inline bool operator==(const QueueSetMemberHandle_t& queue_set_member,
-                       const QueueInterface& queue) {
-  return queue_set_member == queue._handle;
-}
-
-template <typename T>
-class _QueueBase : public QueueInterface {
   protected:
-  _QueueBase(QueueHandle_t handle)
-      : QueueInterface(handle) {}
+  Policy()
+      : _handle(nullptr) {}
 
-  public:
-  bool push(const T& item, const TickType_t ticks_to_wait = portMAX_DELAY) const {
-    return xQueueSendToFront(_handle, &item, ticks_to_wait);
-  }
-
-  bool add(const T& item, const TickType_t ticks_to_wait = portMAX_DELAY) const {
-    return xQueueSendToBack(_handle, &item, ticks_to_wait);
-  }
-
-  bool pop(T& var, const TickType_t ticks_to_wait = portMAX_DELAY) const {
-    return xQueueReceive(_handle, &var, ticks_to_wait);
-  }
-
-  bool peek(T& var, const TickType_t ticks_to_wait = 0) const {
-    return xQueuePeek(_handle, &var, ticks_to_wait);
-  }
-
-  bool pushFromISR(const T& item, BaseType_t& task_woken) const {
-    return xQueueSendToFrontFromISR(_handle, &item, &task_woken);
-  }
-
-  bool addFromISR(const T& item, BaseType_t& task_woken) const {
-    return xQueueSendToBackFromISR(_handle, &item, &task_woken);
-  }
-
-  bool popFromISR(T& var, BaseType_t& task_woken) const {
-    return xQueueReceiveFromISR(_handle, &var, &task_woken);
-  }
-
-  bool peekFromISR(T& var) const { return xQueuePeekFromISR(_handle, &var); }
+  QueueHandle_t _handle;
 };
 
+// Policy for queue with dynamic memory allocation
 template <typename T>
-class QueueDynamic : public _QueueBase<T> {
+class DynamicPolicy : public Policy<DynamicPolicy<T>, T> {
   public:
-  QueueDynamic(const uint32_t length)
-      : _QueueBase<T>(xQueueCreate(length, sizeof(T))) {}
+  DynamicPolicy(uint32_t length) { this->_handle = xQueueCreate(length, sizeof(T)); }
 };
 
+// Policy for queue with static memory allocation
 template <typename T, uint32_t LENGTH>
-class QueueStatic : public _QueueBase<T> {
+class StaticPolicy : public Policy<StaticPolicy<T, LENGTH>, T> {
   public:
-  QueueStatic()
-      : _QueueBase<T>(xQueueCreateStatic(LENGTH, sizeof(T), _storage, &this->_tcb)) {}
+  StaticPolicy() { this->_handle = xQueueCreateStatic(LENGTH, sizeof(T), _storage, &_tcb); }
 
   private:
   StaticQueue_t _tcb;
   uint8_t _storage[LENGTH * sizeof(T)];
 };
 
+// Policy for queue with external storage
 template <typename T>
-class QueueExternalStorage : public _QueueBase<T> {
+class ExternalStoragePolicy : public Policy<ExternalStoragePolicy<T>, T> {
   public:
-  QueueExternalStorage()
-      : _QueueBase<T>(nullptr) {}
+  ExternalStoragePolicy() { this->_handle = nullptr; }
 
   bool init(uint8_t* const buffer, const uint32_t length) {
-    this->_handle = xQueueCreateStatic(length, sizeof(T), buffer, &this->_tcb);
+    this->_handle = xQueueCreateStatic(length, sizeof(T), buffer, &_tcb);
     return (this->_handle != nullptr);
   }
 
   private:
   StaticQueue_t _tcb;
 };
+
+// Main Queue class. You need to specify the policy used
+template <typename Policy, typename T>
+class Queue : public IQueue, public Policy {
+  public:
+  using Policy::Policy; // Inherit constructor
+
+  ~Queue() {
+    if (this->getHandle()) vQueueDelete(this->getHandle());
+  }
+
+  QueueHandle_t getHandle() const override { return Policy::getHandle(); }
+
+  uint32_t getAvailableMessages() const override {
+    return uxQueueMessagesWaiting(Policy::getHandle());
+  }
+
+  uint32_t getAvailableMessagesFromISR() const override {
+    return uxQueueMessagesWaitingFromISR(Policy::getHandle());
+  }
+
+  uint32_t getAvailableSpaces() const override {
+    return uxQueueSpacesAvailable(Policy::getHandle());
+  }
+
+  void reset() const override { xQueueReset(Policy::getHandle()); }
+
+  bool isFull() const override { return uxQueueSpacesAvailable(Policy::getHandle()) == 0; }
+
+  bool isEmpty() const override { return uxQueueMessagesWaiting(Policy::getHandle()) == 0; }
+
+  bool isFullFromISR() const override { return xQueueIsQueueFullFromISR(Policy::getHandle()); }
+
+  bool isEmptyFromISR() const override { return xQueueIsQueueEmptyFromISR(Policy::getHandle()); }
+
+  explicit operator bool() const override { return Policy::getHandle() != nullptr; }
+
+  bool push(const T& item, const TickType_t ticks_to_wait = portMAX_DELAY) const {
+    return xQueueSendToFront(Policy::getHandle(), &item, ticks_to_wait);
+  }
+
+  bool pushFromISR(const T& item, BaseType_t& task_woken) const {
+    return xQueueSendToFrontFromISR(Policy::getHandle(), &item, &task_woken);
+  }
+
+  bool add(const T& item, const TickType_t ticks_to_wait = portMAX_DELAY) const {
+    return xQueueSendToBack(Policy::getHandle(), &item, ticks_to_wait);
+  }
+
+  bool addFromISR(const T& item, BaseType_t& task_woken) const {
+    return xQueueSendToBackFromISR(Policy::getHandle(), &item, &task_woken);
+  }
+
+  bool pop(T& var, const TickType_t ticks_to_wait = portMAX_DELAY) const {
+    return xQueueReceive(Policy::getHandle(), &var, ticks_to_wait);
+  }
+
+  bool popFromISR(T& var, BaseType_t& task_woken) const {
+    return xQueueReceiveFromISR(Policy::getHandle(), &var, &task_woken);
+  }
+
+  bool peek(T& var, const TickType_t ticks_to_wait = 0) const {
+    return xQueuePeek(Policy::getHandle(), &var, ticks_to_wait);
+  }
+
+  bool peekFromISR(T& var) const { return xQueuePeekFromISR(Policy::getHandle(), &var); }
+};
+
+} // namespace Internal
+
+template <typename T>
+using QueueDynamic = Internal::Queue<Internal::DynamicPolicy<T>, T>;
+
+template <typename T, uint32_t LENGTH>
+using QueueStatic = Internal::Queue<Internal::StaticPolicy<T, LENGTH>, T>;
+
+template <typename T>
+using QueueExternalStorage = Internal::Queue<Internal::ExternalStoragePolicy<T>, T>;
+
+} // namespace RTOS::Queue
