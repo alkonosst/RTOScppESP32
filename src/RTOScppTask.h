@@ -9,7 +9,7 @@
 #include <Arduino.h>
 #include <freertos/task.h>
 
-namespace RTOS::Task {
+namespace RTOS::Tasks {
 
 // Interface for Task objects, useful when using pointers
 class ITask {
@@ -237,4 +237,4 @@ using TaskDynamic = Internal::Task<Internal::DynamicPolicy<STACK_SIZE>>;
 
 template <uint32_t STACK_SIZE>
 using TaskStatic = Internal::Task<Internal::StaticPolicy<STACK_SIZE>>;
-} // namespace RTOS::Task
+} // namespace RTOS::Tasks

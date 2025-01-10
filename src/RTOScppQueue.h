@@ -9,7 +9,7 @@
 #include <Arduino.h>
 #include <freertos/queue.h>
 
-namespace RTOS::Queue {
+namespace RTOS::Queues {
 
 // Interface for Queue objects, useful when using pointers
 class IQueue {
@@ -165,4 +165,4 @@ using QueueStatic = Internal::Queue<Internal::StaticPolicy<T, LENGTH>, T>;
 template <typename T>
 using QueueExternalStorage = Internal::Queue<Internal::ExternalStoragePolicy<T>, T>;
 
-} // namespace RTOS::Queue
+} // namespace RTOS::Queues
