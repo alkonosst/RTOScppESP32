@@ -10,126 +10,171 @@
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 
-// Forward declaration of QueueSet
-class QueueSet;
+namespace RTOS::Locks {
 
-class LockInterface {
-  private:
-  friend class QueueSet;
-  friend bool operator==(const QueueSetMemberHandle_t& queue_set_member, const LockInterface& lock);
+// Interface for Lock objects, useful when using pointers
+class ILock {
+  protected:
+  ILock() = default;
+
+  public:
+  ILock(const ILock&)            = delete;
+  ILock& operator=(const ILock&) = delete;
+  ILock(ILock&&)                 = delete;
+  ILock& operator=(ILock&&)      = delete;
+
+  virtual ~ILock() = default;
+
+  virtual SemaphoreHandle_t getHandle() const = 0;
+
+  virtual bool take(const TickType_t ticks_to_wait = portMAX_DELAY) const = 0;
+  virtual bool give() const                                               = 0;
+
+  virtual explicit operator bool() const = 0;
+};
+
+namespace Internal {
+
+// CRTP base class template
+template <typename Derived>
+class Policy {
+  public:
+  SemaphoreHandle_t getHandle() const { return _handle; }
 
   protected:
-  LockInterface(SemaphoreHandle_t handle)
-      : _handle(handle) {}
+  Policy()
+      : _handle(nullptr) {}
 
   SemaphoreHandle_t _handle;
-
-  public:
-  virtual ~LockInterface() {
-    if (_handle) vSemaphoreDelete(_handle);
-  }
-
-  LockInterface(const LockInterface&)                = delete;
-  LockInterface& operator=(const LockInterface&)     = delete;
-  LockInterface(LockInterface&&) noexcept            = delete;
-  LockInterface& operator=(LockInterface&&) noexcept = delete;
-
-  virtual bool take(const TickType_t ticks_to_wait = portMAX_DELAY) const {
-    return xSemaphoreTake(_handle, ticks_to_wait);
-  }
-
-  virtual bool give() const { return xSemaphoreGive(_handle); }
-
-  explicit operator bool() const { return _handle != nullptr; }
 };
 
-inline bool operator==(const QueueSetMemberHandle_t& queue_set_member, const LockInterface& lock) {
-  return queue_set_member == lock._handle;
-}
-
-class MutexDynamic : public LockInterface {
+// Policy base class for mutex
+template <typename Derived>
+class MutexPolicy : public Policy<Derived> {
   public:
-  MutexDynamic()
-      : LockInterface(xSemaphoreCreateMutex()) {}
+  bool take(const TickType_t ticks_to_wait = portMAX_DELAY) const {
+    return xSemaphoreTake(this->_handle, ticks_to_wait);
+  }
+
+  bool give() const { return xSemaphoreGive(this->_handle); }
 };
 
-class MutexStatic : public LockInterface {
+// Policy for mutex with dynamic memory allocation
+class MutexDynamicPolicy : public MutexPolicy<MutexDynamicPolicy> {
   public:
-  MutexStatic()
-      : LockInterface(xSemaphoreCreateMutexStatic(&_tcb)) {}
+  MutexDynamicPolicy() { _handle = xSemaphoreCreateMutex(); }
+};
+
+// Policy for mutex with static memory allocation
+class MutexStaticPolicy : public MutexPolicy<MutexStaticPolicy> {
+  public:
+  MutexStaticPolicy() { _handle = xSemaphoreCreateMutexStatic(&_tcb); }
 
   private:
   StaticSemaphore_t _tcb;
 };
 
-class MutexRecursiveDynamic : public LockInterface {
+// Policy base class for recursive mutex
+template <typename Derived>
+class MutexRecursivePolicy : public Policy<Derived> {
   public:
-  MutexRecursiveDynamic()
-      : LockInterface(xSemaphoreCreateRecursiveMutex()) {}
+  bool take(const TickType_t ticks_to_wait = portMAX_DELAY) const {
+    return xSemaphoreTakeRecursive(this->_handle, ticks_to_wait);
+  }
+
+  bool give() const { return xSemaphoreGiveRecursive(this->_handle); }
+};
+
+// Policy for recursive mutex with dynamic memory allocation
+class MutexRecursiveDynamicPolicy : public MutexRecursivePolicy<MutexRecursiveDynamicPolicy> {
+  public:
+  MutexRecursiveDynamicPolicy() { _handle = xSemaphoreCreateRecursiveMutex(); }
+};
+
+// Policy for recursive mutex with static memory allocation
+class MutexRecursiveStaticPolicy : public MutexRecursivePolicy<MutexRecursiveStaticPolicy> {
+  public:
+  MutexRecursiveStaticPolicy() { _handle = xSemaphoreCreateRecursiveMutexStatic(&_tcb); }
+
+  private:
+  StaticSemaphore_t _tcb;
+};
+
+// Policy base class for semaphores
+template <typename Derived>
+class SemaphorePolicy : public Policy<Derived> {
+  public:
+  bool take(const TickType_t ticks_to_wait = portMAX_DELAY) const {
+    return xSemaphoreTake(this->_handle, ticks_to_wait);
+  }
+
+  bool give() const { return xSemaphoreGive(this->_handle); }
+};
+
+// Policy for binary semaphore with dynamic memory allocation
+class SemaphoreBinaryDynamicPolicy : public SemaphorePolicy<SemaphoreBinaryDynamicPolicy> {
+  public:
+  SemaphoreBinaryDynamicPolicy() { _handle = xSemaphoreCreateBinary(); }
+};
+
+// Policy for binary semaphore with static memory allocation
+class SemaphoreBinaryStaticPolicy : public SemaphorePolicy<SemaphoreBinaryStaticPolicy> {
+  public:
+  SemaphoreBinaryStaticPolicy() { _handle = xSemaphoreCreateBinaryStatic(&_tcb); }
+
+  private:
+  StaticSemaphore_t _tcb;
+};
+
+// Policy for counting semaphore with dynamic memory allocation
+class SemaphoreCountingDynamicPolicy : public SemaphorePolicy<SemaphoreCountingDynamicPolicy> {
+  public:
+  SemaphoreCountingDynamicPolicy(const uint8_t max_count, const uint8_t initial_count = 0) {
+    _handle = xSemaphoreCreateCounting(max_count, initial_count);
+  }
+};
+
+// Policy for counting semaphore with static memory allocation
+class SemaphoreCountingStaticPolicy : public SemaphorePolicy<SemaphoreCountingStaticPolicy> {
+  public:
+  SemaphoreCountingStaticPolicy(const uint8_t max_count, const uint8_t initial_count = 0) {
+    _handle = xSemaphoreCreateCountingStatic(max_count, initial_count, &_tcb);
+  }
+
+  private:
+  StaticSemaphore_t _tcb;
+};
+
+// Main Lock class. You need to specify the policy used
+template <typename Policy>
+class Lock : public ILock, private Policy {
+  public:
+  using Policy::Policy; // Inherit constructor
+
+  ~Lock() {
+    if (getHandle()) vSemaphoreDelete(getHandle());
+  }
+
+  SemaphoreHandle_t getHandle() const override { return Policy::getHandle(); }
 
   bool take(const TickType_t ticks_to_wait = portMAX_DELAY) const override {
-    return xSemaphoreTakeRecursive(_handle, ticks_to_wait);
+    return Policy::take(ticks_to_wait);
   }
 
-  bool give() const override { return xSemaphoreGiveRecursive(_handle); }
+  bool give() const override { return Policy::give(); }
+
+  explicit operator bool() const override { return Policy::getHandle() != nullptr; }
 };
 
-class MutexRecursiveStatic : public LockInterface {
-  public:
-  MutexRecursiveStatic()
-      : LockInterface(xSemaphoreCreateRecursiveMutexStatic(&_tcb)) {}
+} // namespace Internal
 
-  bool take(const TickType_t ticks_to_wait = portMAX_DELAY) const override {
-    return xSemaphoreTakeRecursive(_handle, ticks_to_wait);
-  }
+using MutexDynamic             = Internal::Lock<Internal::MutexDynamicPolicy>;
+using MutexStatic              = Internal::Lock<Internal::MutexStaticPolicy>;
+using MutexRecursiveDynamic    = Internal::Lock<Internal::MutexRecursiveDynamicPolicy>;
+using MutexRecursiveStatic     = Internal::Lock<Internal::MutexRecursiveStaticPolicy>;
+using SemaphoreBinaryDynamic   = Internal::Lock<Internal::SemaphoreBinaryDynamicPolicy>;
+using SemaphoreBinaryStatic    = Internal::Lock<Internal::SemaphoreBinaryStaticPolicy>;
+using SemaphoreCountingDynamic = Internal::Lock<Internal::SemaphoreCountingDynamicPolicy>;
+using SemaphoreCountingStatic  = Internal::Lock<Internal::SemaphoreCountingStaticPolicy>;
 
-  bool give() const override { return xSemaphoreGiveRecursive(_handle); }
-
-  private:
-  StaticSemaphore_t _tcb;
-};
-
-class Semaphore : public LockInterface {
-  protected:
-  Semaphore(const SemaphoreHandle_t handle)
-      : LockInterface(handle) {}
-
-  public:
-  bool takeFromISR(BaseType_t& task_woken) const {
-    return xSemaphoreTakeFromISR(_handle, &task_woken);
-  }
-  bool giveFromISR(BaseType_t& task_woken) const {
-    return xSemaphoreGiveFromISR(_handle, &task_woken);
-  }
-  uint8_t getCount() const { return uxSemaphoreGetCount(_handle); }
-};
-
-class SemaphoreBinaryDynamic : public Semaphore {
-  public:
-  SemaphoreBinaryDynamic()
-      : Semaphore(xSemaphoreCreateBinary()) {}
-};
-
-class SemaphoreBinaryStatic : public Semaphore {
-  public:
-  SemaphoreBinaryStatic()
-      : Semaphore(xSemaphoreCreateBinaryStatic(&_tcb)) {}
-
-  private:
-  StaticSemaphore_t _tcb;
-};
-
-class SemaphoreCountingDynamic : public Semaphore {
-  public:
-  SemaphoreCountingDynamic(const uint8_t max_count, const uint8_t initial_count = 0)
-      : Semaphore(xSemaphoreCreateCounting(max_count, initial_count)) {}
-};
-
-class SemaphoreCountingStatic : public Semaphore {
-  public:
-  SemaphoreCountingStatic(const uint8_t max_count, const uint8_t initial_count = 0)
-      : Semaphore(xSemaphoreCreateCountingStatic(max_count, initial_count, &_tcb)) {}
-
-  private:
-  StaticSemaphore_t _tcb;
-};
+} // namespace RTOS::Locks
