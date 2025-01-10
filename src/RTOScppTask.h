@@ -11,7 +11,7 @@
 
 namespace RTOS::Task {
 
-// Interface for Tasks objects, useful when using pointers
+// Interface for Task objects, useful when using pointers
 class ITask {
   protected:
   ITask() = default;
@@ -75,7 +75,7 @@ struct Policy {
   void* _parameters;
   BaseType_t _core;
 
-  bool create() { return static_cast<Derived*>(this)->initImpl(); }
+  bool create() { return static_cast<Derived*>(this)->createImpl(); }
 
   bool create(const char* name, TaskFunction_t function, void* parameters, uint8_t priority,
               BaseType_t core) {
@@ -119,7 +119,7 @@ struct StaticPolicy : public Policy<StaticPolicy<StackSize>> {
                                                   this->_parameters,
                                                   this->_priority,
                                                   _stack,
-                                                  _tcb,
+                                                  &_tcb,
                                                   this->_core);
 
     return this->_handle != nullptr;
