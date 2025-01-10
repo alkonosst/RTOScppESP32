@@ -20,19 +20,25 @@ class QueueSet {
     if (_handle) vQueueDelete(_handle);
   }
 
-  QueueSet(const QueueSet&)                = delete;
-  QueueSet& operator=(const QueueSet&)     = delete;
-  QueueSet(QueueSet&&) noexcept            = delete;
-  QueueSet& operator=(QueueSet&&) noexcept = delete;
+  QueueSet(const QueueSet&)            = delete;
+  QueueSet& operator=(const QueueSet&) = delete;
+  QueueSet(QueueSet&&)                 = delete;
+  QueueSet& operator=(QueueSet&&)      = delete;
 
-  bool add(LockInterface& lock) const { return xQueueAddToSet(lock._handle, _handle); }
-  bool add(QueueInterface& queue) const { return xQueueAddToSet(queue._handle, _handle); }
+  bool add(RTOS::Locks::ILock& lock) const { return xQueueAddToSet(lock.getHandle(), _handle); }
+  bool add(RTOS::Queues::IQueue& queue) const { return xQueueAddToSet(queue.getHandle(), _handle); }
   bool add(RingBufferInterface& ring_buffer) const {
     return xRingbufferAddToQueueSetRead(ring_buffer._handle, _handle);
   }
 
-  bool remove(LockInterface& lock) const { return xQueueRemoveFromSet(lock._handle, _handle); }
-  bool remove(QueueInterface& queue) const { return xQueueRemoveFromSet(queue._handle, _handle); }
+  bool remove(RTOS::Locks::ILock& lock) const {
+    return xQueueRemoveFromSet(lock.getHandle(), _handle);
+  }
+
+  bool remove(RTOS::Queues::IQueue& queue) const {
+    return xQueueRemoveFromSet(queue.getHandle(), _handle);
+  }
+
   bool remove(RingBufferInterface& ring_buffer) const {
     return xRingbufferRemoveFromQueueSetRead(ring_buffer._handle, _handle);
   }
