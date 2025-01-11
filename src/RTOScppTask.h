@@ -51,12 +51,14 @@ class ITask {
   virtual bool notifyAndQueryFromISR(const uint32_t value, const eNotifyAction action,
                                      uint32_t& old_value, BaseType_t& task_woken) const = 0;
 
-  virtual bool notifyGive() const                                                     = 0;
-  virtual void notifyGiveFromISR(BaseType_t& task_woken) const                        = 0;
-  virtual uint32_t notifyTake(const bool clear, const TickType_t ticks_to_wait) const = 0;
+  virtual bool notifyGive() const                                                   = 0;
+  virtual void notifyGiveFromISR(BaseType_t& task_woken) const                      = 0;
+  virtual uint32_t notifyTake(const bool clear,
+                              const TickType_t ticks_to_wait = portMAX_DELAY) const = 0;
 
   virtual bool notifyWait(const uint32_t clear_on_entry, const uint32_t clear_on_exit,
-                          uint32_t& value, const TickType_t ticks_to_wait) const = 0;
+                          uint32_t& value,
+                          const TickType_t ticks_to_wait = portMAX_DELAY) const = 0;
 
   virtual void updateStackStats()          = 0;
   virtual uint32_t getStackUsed() const    = 0;
