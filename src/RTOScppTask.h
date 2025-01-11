@@ -65,7 +65,8 @@ class ITask {
 };
 
 namespace Internal {
-// Policy base class (CRTP)
+
+// CRTP base policy class
 template <typename Derived>
 struct Policy {
   TaskHandle_t _handle;

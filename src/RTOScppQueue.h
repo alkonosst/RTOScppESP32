@@ -41,7 +41,7 @@ class IQueue {
 
 namespace Internal {
 
-// CRTP base class template
+// CRTP base class
 template <typename Derived, typename T>
 class Policy {
   public:

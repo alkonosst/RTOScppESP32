@@ -58,7 +58,7 @@ class ITimer {
 
 namespace Internal {
 
-// CRTP base class template
+// CRTP base class
 template <typename Derived>
 class Policy {
   public:

@@ -35,7 +35,7 @@ class ILock {
 
 namespace Internal {
 
-// CRTP base class template
+// CRTP base policy class
 template <typename Derived>
 class Policy {
   public:
@@ -53,7 +53,7 @@ class Policy {
   SemaphoreHandle_t _handle;
 };
 
-// CRTP mutex base class template
+// CRTP mutex base policy class
 template <typename Derived>
 class MutexPolicy : public Policy<MutexPolicy<Derived>> {
   public:
@@ -87,7 +87,7 @@ class MutexStaticPolicy : public MutexPolicy<MutexStaticPolicy> {
   StaticSemaphore_t _tcb;
 };
 
-// CRTP recursive mutex base class template
+// CRTP recursive mutex policy base class
 template <typename Derived>
 class MutexRecursivePolicy : public Policy<MutexRecursivePolicy<Derived>> {
   public:
@@ -121,7 +121,7 @@ class MutexRecursiveStaticPolicy : public MutexRecursivePolicy<MutexRecursiveSta
   StaticSemaphore_t _tcb;
 };
 
-// CRTP binary semaphore base class template
+// CRTP binary semaphore policy base class
 template <typename Derived>
 class SemaphoreBinaryPolicy : public Policy<SemaphoreBinaryPolicy<Derived>> {
   public:
@@ -155,7 +155,7 @@ class SemaphoreBinaryStaticPolicy : public SemaphoreBinaryPolicy<SemaphoreBinary
   StaticSemaphore_t _tcb;
 };
 
-// CRTP counting semaphore base class template
+// CRTP counting semaphore policy base class
 template <typename Derived>
 class SemaphoreCountingPolicy : public Policy<SemaphoreCountingPolicy<Derived>> {
   public:
