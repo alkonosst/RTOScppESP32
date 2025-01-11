@@ -27,7 +27,14 @@ class IRingBuffer {
   virtual RingbufHandle_t getHandle() const = 0;
 
   virtual explicit operator bool() const = 0;
+  friend bool operator==(const QueueSetMemberHandle_t& queue_set_member,
+                         const IRingBuffer& ringbuf);
 };
+
+// Comparison operator for QueueSet
+inline bool operator==(const QueueSetMemberHandle_t& queue_set_member, const IRingBuffer& ringbuf) {
+  return queue_set_member == ringbuf.getHandle();
+}
 
 namespace Internal {
 

@@ -37,7 +37,13 @@ class IQueue {
   virtual bool isEmptyFromISR() const = 0;
 
   virtual explicit operator bool() const = 0;
+  friend bool operator==(const QueueSetMemberHandle_t& queue_set_member, const IQueue& queue);
 };
+
+// Comparison operator for QueueSet
+inline bool operator==(const QueueSetMemberHandle_t& queue_set_member, const IQueue& queue) {
+  return queue_set_member == queue.getHandle();
+}
 
 namespace Internal {
 

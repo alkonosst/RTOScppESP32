@@ -6,10 +6,13 @@
 
 #pragma once
 
+#include <Arduino.h>
+
 #include "RTOScppLock.h"
 #include "RTOScppQueue.h"
 #include "RTOScppRingBuffer.h"
-#include <Arduino.h>
+
+namespace RTOS::QueueSets {
 
 class QueueSet {
   public:
@@ -27,8 +30,8 @@ class QueueSet {
 
   bool add(RTOS::Locks::ILock& lock) const { return xQueueAddToSet(lock.getHandle(), _handle); }
   bool add(RTOS::Queues::IQueue& queue) const { return xQueueAddToSet(queue.getHandle(), _handle); }
-  bool add(RingBufferInterface& ring_buffer) const {
-    return xRingbufferAddToQueueSetRead(ring_buffer._handle, _handle);
+  bool add(RTOS::RingBuffers::IRingBuffer& ring_buffer) const {
+    return xRingbufferAddToQueueSetRead(ring_buffer.getHandle(), _handle);
   }
 
   bool remove(RTOS::Locks::ILock& lock) const {
@@ -39,8 +42,8 @@ class QueueSet {
     return xQueueRemoveFromSet(queue.getHandle(), _handle);
   }
 
-  bool remove(RingBufferInterface& ring_buffer) const {
-    return xRingbufferRemoveFromQueueSetRead(ring_buffer._handle, _handle);
+  bool remove(RTOS::RingBuffers::IRingBuffer& ring_buffer) const {
+    return xRingbufferRemoveFromQueueSetRead(ring_buffer.getHandle(), _handle);
   }
 
   QueueSetMemberHandle_t select(const TickType_t ticks_to_wait = portMAX_DELAY) const {
@@ -53,3 +56,5 @@ class QueueSet {
   private:
   QueueSetHandle_t _handle;
 };
+
+} // namespace RTOS::QueueSets

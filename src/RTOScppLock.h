@@ -31,7 +31,13 @@ class ILock {
   virtual bool give()                                               = 0;
 
   virtual explicit operator bool() const = 0;
+  friend bool operator==(const QueueSetMemberHandle_t& queue_set_member, const ILock& lock);
 };
+
+// Comparison operator for QueueSet
+inline bool operator==(const QueueSetMemberHandle_t& queue_set_member, const ILock& lock) {
+  return queue_set_member == lock.getHandle();
+}
 
 namespace Internal {
 
