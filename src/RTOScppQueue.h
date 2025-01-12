@@ -61,31 +61,33 @@ class Policy {
 };
 
 // Policy for queue with dynamic memory allocation
-template <typename T>
-class DynamicPolicy : public Policy<DynamicPolicy<T>, T> {
+template <typename T, uint32_t Length>
+class DynamicPolicy : public Policy<DynamicPolicy<T, Length>, T> {
   public:
-  DynamicPolicy(uint32_t length) { this->_handle = xQueueCreate(length, sizeof(T)); }
+  DynamicPolicy() { this->_handle = xQueueCreate(Length, sizeof(T)); }
 };
 
 // Policy for queue with static memory allocation
-template <typename T, uint32_t LENGTH>
-class StaticPolicy : public Policy<StaticPolicy<T, LENGTH>, T> {
+template <typename T, uint32_t Length>
+class StaticPolicy : public Policy<StaticPolicy<T, Length>, T> {
   public:
-  StaticPolicy() { this->_handle = xQueueCreateStatic(LENGTH, sizeof(T), _storage, &_tcb); }
+  StaticPolicy() { this->_handle = xQueueCreateStatic(Length, sizeof(T), _storage, &_tcb); }
 
   private:
   StaticQueue_t _tcb;
-  uint8_t _storage[LENGTH * sizeof(T)];
+  uint8_t _storage[Length * sizeof(T)];
 };
 
 // Policy for queue with external storage
-template <typename T>
-class ExternalStoragePolicy : public Policy<ExternalStoragePolicy<T>, T> {
+template <typename T, uint32_t Length>
+class ExternalStoragePolicy : public Policy<ExternalStoragePolicy<T, Length>, T> {
   public:
+  static constexpr uint32_t REQUIRED_SIZE = Length * sizeof(T);
+
   ExternalStoragePolicy() { this->_handle = nullptr; }
 
-  bool init(uint8_t* const buffer, const uint32_t length) {
-    this->_handle = xQueueCreateStatic(length, sizeof(T), buffer, &_tcb);
+  bool create(uint8_t* const buffer) {
+    this->_handle = xQueueCreateStatic(Length, sizeof(T), buffer, &_tcb);
     return (this->_handle != nullptr);
   }
 
@@ -162,13 +164,13 @@ class Queue : public IQueue, public Policy {
 
 } // namespace Internal
 
-template <typename T>
-using QueueDynamic = Internal::Queue<Internal::DynamicPolicy<T>, T>;
+template <typename T, uint32_t Length>
+using QueueDynamic = Internal::Queue<Internal::DynamicPolicy<T, Length>, T>;
 
-template <typename T, uint32_t LENGTH>
-using QueueStatic = Internal::Queue<Internal::StaticPolicy<T, LENGTH>, T>;
+template <typename T, uint32_t Length>
+using QueueStatic = Internal::Queue<Internal::StaticPolicy<T, Length>, T>;
 
-template <typename T>
-using QueueExternalStorage = Internal::Queue<Internal::ExternalStoragePolicy<T>, T>;
+template <typename T, uint32_t Length>
+using QueueExternalStorage = Internal::Queue<Internal::ExternalStoragePolicy<T, Length>, T>;
 
 } // namespace RTOS::Queues
