@@ -36,11 +36,11 @@ class IBuffer {
   virtual uint32_t receiveFromISR(void* rx_buffer, const uint32_t bytes,
                                   BaseType_t& task_woken) const                  = 0;
 
-  virtual bool reset() const               = 0;
-  virtual bool isEmpty() const             = 0;
-  virtual bool isFull() const              = 0;
-  virtual uint32_t availableSpaces() const = 0;
-  virtual uint32_t availableBytes() const  = 0;
+  virtual bool reset() const                  = 0;
+  virtual bool isEmpty() const                = 0;
+  virtual bool isFull() const                 = 0;
+  virtual uint32_t getAvailableSpaces() const = 0;
+  virtual uint32_t getAvailableBytes() const  = 0;
 
   virtual explicit operator bool() const = 0;
 };
@@ -185,9 +185,9 @@ class DataBuffer : public IBuffer, public Policy {
 
   bool isFull() const override { return xStreamBufferIsFull(getHandle()); }
 
-  uint32_t availableSpaces() const override { return xStreamBufferSpacesAvailable(getHandle()); }
+  uint32_t getAvailableSpaces() const override { return xStreamBufferSpacesAvailable(getHandle()); }
 
-  uint32_t availableBytes() const override { return xStreamBufferBytesAvailable(getHandle()); }
+  uint32_t getAvailableBytes() const override { return xStreamBufferBytesAvailable(getHandle()); }
 
   explicit operator bool() const override { return getHandle() != nullptr; }
 };
