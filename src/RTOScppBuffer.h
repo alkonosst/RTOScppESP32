@@ -123,21 +123,23 @@ template <uint32_t BufferSize>
 class MessageBufferStaticPolicy : public Policy<MessageBufferStaticPolicy<BufferSize>> {
   public:
   MessageBufferStaticPolicy() {
-    this->_handle = xStreamBufferGenericCreateStatic(BufferSize, 0, true, _storage, &_tcb);
+    this->_handle = xStreamBufferGenericCreateStatic(BufferSize + 1, 0, true, _storage, &_tcb);
   }
 
   private:
   StaticStreamBuffer_t _tcb;
-  uint8_t _storage[BufferSize];
+  uint8_t _storage[BufferSize + 2];
 };
 
 // Policy for message buffer with external memory allocation
-template <uint8_t Dummy = 0>
+template <uint32_t BufferSize>
 class MessageBufferExternalStoragePolicy
-    : public Policy<MessageBufferExternalStoragePolicy<Dummy>> {
+    : public Policy<MessageBufferExternalStoragePolicy<BufferSize>> {
   public:
-  bool create(uint8_t* const buffer, const uint32_t buffer_size) {
-    this->_handle = xStreamBufferGenericCreateStatic(buffer_size, 0, true, buffer, &_tcb);
+  static constexpr uint32_t REQUIRED_SIZE = BufferSize + 2;
+
+  bool create(uint8_t* const buffer) {
+    this->_handle = xStreamBufferGenericCreateStatic(BufferSize + 1, 0, true, buffer, &_tcb);
     return this->_handle != nullptr;
   }
 
@@ -210,7 +212,8 @@ using MessageBufferDynamic = Internal::DataBuffer<Internal::MessageBufferDynamic
 template <uint32_t BufferSize>
 using MessageBufferStatic = Internal::DataBuffer<Internal::MessageBufferStaticPolicy<BufferSize>>;
 
+template <uint32_t BufferSize>
 using MessageBufferExternalStorage =
-  Internal::DataBuffer<Internal::MessageBufferExternalStoragePolicy<>>;
+  Internal::DataBuffer<Internal::MessageBufferExternalStoragePolicy<BufferSize>>;
 
 } // namespace RTOS::Buffers
