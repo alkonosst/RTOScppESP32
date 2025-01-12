@@ -79,7 +79,9 @@ class DynamicPolicy : public Policy<DynamicPolicy> {
   bool createImpl(const char* name, TimerCallbackFunction_t callback, const TickType_t period,
                   void* id, const bool auto_reload, const bool start) {
     this->_handle = xTimerCreate(name, period, auto_reload, id, callback);
-    return this->_handle != nullptr;
+    if (this->_handle == nullptr) return false;
+    if (start) xTimerStart(this->_handle, 0);
+    return true;
   }
 };
 
@@ -89,7 +91,9 @@ class StaticPolicy : public Policy<StaticPolicy> {
   bool createImpl(const char* name, TimerCallbackFunction_t callback, const TickType_t period,
                   void* id, const bool auto_reload, const bool start) {
     this->_handle = xTimerCreateStatic(name, period, auto_reload, id, callback, &_tcb);
-    return this->_handle != nullptr;
+    if (this->_handle == nullptr) return false;
+    if (start) xTimerStart(this->_handle, 0);
+    return true;
   }
 
   private:
@@ -100,7 +104,7 @@ class StaticPolicy : public Policy<StaticPolicy> {
 template <typename Policy>
 class Timer : public ITimer {
   public:
-  Timer() {}
+  Timer() = default;
 
   Timer(const char* name, TimerCallbackFunction_t callback, const TickType_t period, void* id,
         const bool auto_reload, const bool start) {
@@ -145,7 +149,10 @@ class Timer : public ITimer {
   }
 
   const char* getName() const override { return pcTimerGetName(getHandle()); }
-  TickType_t getExpiryTime() const override { return xTimerGetExpiryTime(getHandle()); }
+
+  TickType_t getExpiryTime() const override {
+    return xTimerGetExpiryTime(getHandle()) - xTaskGetTickCount();
+  }
 
   bool setPeriod(const TickType_t period,
                  const TickType_t ticks_to_wait = portMAX_DELAY) const override {
