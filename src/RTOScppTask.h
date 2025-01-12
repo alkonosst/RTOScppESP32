@@ -24,6 +24,7 @@ class ITask {
 
   virtual ~ITask() = default;
 
+  virtual TaskHandle_t getHandle() const                           = 0;
   virtual bool create()                                            = 0;
   virtual bool create(const char* name, TaskFunction_t function, uint8_t priority, void* parameters,
                       uint8_t running_core = ARDUINO_RUNNING_CORE) = 0;
@@ -34,8 +35,7 @@ class ITask {
 
   virtual bool abortDelay() const = 0;
 
-  virtual TaskHandle_t getHandle() const = 0;
-  virtual const char* getName() const    = 0;
+  virtual const char* getName() const = 0;
 
   virtual void setPriority(const uint8_t priority) = 0;
   virtual uint8_t getPriority() const              = 0;
@@ -160,8 +160,10 @@ class Task : public ITask {
   }
 
   ~Task() {
-    if (_policy.getHandle()) vTaskDelete(_policy.getHandle());
+    if (getHandle()) vTaskDelete(getHandle());
   }
+
+  TaskHandle_t getHandle() const { return _policy.getHandle(); }
 
   bool create() { return _policy.create(); }
 
@@ -171,17 +173,15 @@ class Task : public ITask {
     return _policy.create();
   }
 
-  bool isCreated() const { return _policy.getHandle() != nullptr; }
+  bool isCreated() const { return getHandle() != nullptr; }
 
-  void suspend() const { vTaskSuspend(_policy.getHandle()); }
+  void suspend() const { vTaskSuspend(getHandle()); }
 
-  void resume() const { vTaskResume(_policy.getHandle()); }
+  void resume() const { vTaskResume(getHandle()); }
 
-  eTaskState getState() const { return eTaskGetState(_policy.getHandle()); }
+  eTaskState getState() const { return eTaskGetState(getHandle()); }
 
-  bool abortDelay() const { return xTaskAbortDelay(_policy.getHandle()); }
-
-  TaskHandle_t getHandle() const { return _policy.getHandle(); }
+  bool abortDelay() const { return xTaskAbortDelay(getHandle()); }
 
   const char* getName() const { return _policy.getName(); }
 
@@ -189,36 +189,36 @@ class Task : public ITask {
 
   uint8_t getCore() const { return _policy.getCore(); }
 
-  void setPriority(const uint8_t priority) { vTaskPrioritySet(_policy.getHandle(), priority); }
+  void setPriority(const uint8_t priority) { vTaskPrioritySet(getHandle(), priority); }
 
-  uint8_t getPriority() const { return uxTaskPriorityGet(_policy.getHandle()); }
+  uint8_t getPriority() const { return uxTaskPriorityGet(getHandle()); }
 
-  uint8_t getPriorityFromISR() const { return uxTaskPriorityGetFromISR(_policy.getHandle()); }
+  uint8_t getPriorityFromISR() const { return uxTaskPriorityGetFromISR(getHandle()); }
 
   uint32_t getStackSize() const { return Policy::_stack_size; }
 
   bool notify(const uint32_t value, const eNotifyAction action) {
-    return xTaskNotify(_policy.getHandle(), value, action);
+    return xTaskNotify(getHandle(), value, action);
   }
 
   bool notifyFromISR(const uint32_t value, const eNotifyAction action,
                      BaseType_t& task_woken) const {
-    return xTaskNotifyFromISR(_policy.getHandle(), value, action, &task_woken);
+    return xTaskNotifyFromISR(getHandle(), value, action, &task_woken);
   }
 
   bool notifyAndQuery(const uint32_t value, const eNotifyAction action, uint32_t& old_value) const {
-    return xTaskNotifyAndQuery(_policy.getHandle(), value, action, &old_value);
+    return xTaskNotifyAndQuery(getHandle(), value, action, &old_value);
   }
 
   bool notifyAndQueryFromISR(const uint32_t value, const eNotifyAction action, uint32_t& old_value,
                              BaseType_t& task_woken) const {
-    return xTaskNotifyAndQueryFromISR(_policy.getHandle(), value, action, &old_value, &task_woken);
+    return xTaskNotifyAndQueryFromISR(getHandle(), value, action, &old_value, &task_woken);
   }
 
-  bool notifyGive() const { return xTaskNotifyGive(_policy.getHandle()); }
+  bool notifyGive() const { return xTaskNotifyGive(getHandle()); }
 
   void notifyGiveFromISR(BaseType_t& task_woken) const {
-    return vTaskNotifyGiveFromISR(_policy.getHandle(), &task_woken);
+    return vTaskNotifyGiveFromISR(getHandle(), &task_woken);
   }
 
   uint32_t notifyTake(const bool clear, const TickType_t ticks_to_wait) const {
@@ -231,7 +231,7 @@ class Task : public ITask {
   }
 
   void updateStackStats() {
-    _stack_used = Policy::_stack_size - uxTaskGetStackHighWaterMark(_policy.getHandle());
+    _stack_used = Policy::_stack_size - uxTaskGetStackHighWaterMark(getHandle());
     _stack_min  = min(_stack_min, _stack_used);
     _stack_max  = max(_stack_max, _stack_used);
   }
@@ -242,7 +242,7 @@ class Task : public ITask {
 
   uint32_t getStackMaxUsed() const { return _stack_max; }
 
-  explicit operator bool() const { return _policy.getHandle() != nullptr; }
+  explicit operator bool() const { return getHandle() != nullptr; }
 
   private:
   Policy _policy;
