@@ -10,20 +10,20 @@
 #include <freertos/message_buffer.h>
 #include <freertos/stream_buffer.h>
 
-namespace RTOS::DataBuffers {
+namespace RTOS::Buffers {
 
-// Interface for DataBuffer objects, useful when using pointers
-class IDataBuffer {
+// Interface for Buffer objects, useful when using pointers
+class IBuffer {
   protected:
-  IDataBuffer() = default;
+  IBuffer() = default;
 
   public:
-  IDataBuffer(const IDataBuffer&)            = delete;
-  IDataBuffer& operator=(const IDataBuffer&) = delete;
-  IDataBuffer(IDataBuffer&&)                 = delete;
-  IDataBuffer& operator=(IDataBuffer&&)      = delete;
+  IBuffer(const IBuffer&)            = delete;
+  IBuffer& operator=(const IBuffer&) = delete;
+  IBuffer(IBuffer&&)                 = delete;
+  IBuffer& operator=(IBuffer&&)      = delete;
 
-  virtual ~IDataBuffer() = default;
+  virtual ~IBuffer() = default;
 
   virtual StreamBufferHandle_t getHandle() const = 0;
 
@@ -75,7 +75,7 @@ class StreamBufferDynamicPolicy
     : public StreamBufferPolicy<StreamBufferDynamicPolicy<BufferSize, TriggerBytes>> {
   public:
   StreamBufferDynamicPolicy() {
-    this->_handle = xStreamBufferGenericCreate(BufferSize + 1, TriggerBytes, false);
+    this->_handle = xStreamBufferGenericCreate(BufferSize, TriggerBytes, false);
   }
 };
 
@@ -91,16 +91,19 @@ class StreamBufferStaticPolicy
 
   private:
   StaticStreamBuffer_t _tcb;
-  uint8_t _storage[BufferSize + 1];
+  uint8_t _storage[BufferSize + 2];
 };
 
 // Policy for data buffer with external memory allocation
-template <uint8_t Dummy = 0>
-class StreamBufferExternalStoragePolicy : public Policy<StreamBufferExternalStoragePolicy<Dummy>> {
+template <uint32_t BufferSize, uint32_t TriggerBytes>
+class StreamBufferExternalStoragePolicy
+    : public StreamBufferPolicy<StreamBufferExternalStoragePolicy<BufferSize, TriggerBytes>> {
   public:
-  bool create(uint8_t* const buffer, const uint32_t buffer_size, const uint32_t trigger_bytes) {
+  static constexpr uint32_t REQUIRED_SIZE = BufferSize + 2;
+
+  bool create(uint8_t* const buffer) {
     this->_handle =
-      xStreamBufferGenericCreateStatic(buffer_size + 1, trigger_bytes, false, buffer, &_tcb);
+      xStreamBufferGenericCreateStatic(BufferSize + 1, TriggerBytes, false, buffer, &_tcb);
     return this->_handle != nullptr;
   }
 
@@ -112,9 +115,7 @@ class StreamBufferExternalStoragePolicy : public Policy<StreamBufferExternalStor
 template <uint32_t BufferSize>
 class MessageBufferDynamicPolicy : public Policy<MessageBufferDynamicPolicy<BufferSize>> {
   public:
-  MessageBufferDynamicPolicy() {
-    this->_handle = xStreamBufferGenericCreate(BufferSize + 1, 0, true);
-  }
+  MessageBufferDynamicPolicy() { this->_handle = xStreamBufferGenericCreate(BufferSize, 0, true); }
 };
 
 // Policy for message buffer with static memory allocation
@@ -122,12 +123,12 @@ template <uint32_t BufferSize>
 class MessageBufferStaticPolicy : public Policy<MessageBufferStaticPolicy<BufferSize>> {
   public:
   MessageBufferStaticPolicy() {
-    this->_handle = xStreamBufferGenericCreateStatic(BufferSize + 1, 0, true, _storage, &_tcb);
+    this->_handle = xStreamBufferGenericCreateStatic(BufferSize, 0, true, _storage, &_tcb);
   }
 
   private:
   StaticStreamBuffer_t _tcb;
-  uint8_t _storage[BufferSize + 1];
+  uint8_t _storage[BufferSize];
 };
 
 // Policy for message buffer with external memory allocation
@@ -136,7 +137,7 @@ class MessageBufferExternalStoragePolicy
     : public Policy<MessageBufferExternalStoragePolicy<Dummy>> {
   public:
   bool create(uint8_t* const buffer, const uint32_t buffer_size) {
-    this->_handle = xStreamBufferGenericCreateStatic(buffer_size + 1, 0, true, buffer, &_tcb);
+    this->_handle = xStreamBufferGenericCreateStatic(buffer_size, 0, true, buffer, &_tcb);
     return this->_handle != nullptr;
   }
 
@@ -146,7 +147,7 @@ class MessageBufferExternalStoragePolicy
 
 // Main DataBuffer class. You need to specify the policy used
 template <typename Policy>
-class DataBuffer : public IDataBuffer, public Policy {
+class DataBuffer : public IBuffer, public Policy {
   public:
   using Policy::Policy; // Inherit constructor
 
@@ -199,8 +200,9 @@ template <uint32_t BufferSize, uint32_t TriggerBytes>
 using StreamBufferStatic =
   Internal::DataBuffer<Internal::StreamBufferStaticPolicy<BufferSize, TriggerBytes>>;
 
+template <uint32_t BufferSize, uint32_t TriggerBytes>
 using StreamBufferExternalStorage =
-  Internal::DataBuffer<Internal::StreamBufferExternalStoragePolicy<>>;
+  Internal::DataBuffer<Internal::StreamBufferExternalStoragePolicy<BufferSize, TriggerBytes>>;
 
 template <uint32_t BufferSize>
 using MessageBufferDynamic = Internal::DataBuffer<Internal::MessageBufferDynamicPolicy<BufferSize>>;
@@ -211,4 +213,4 @@ using MessageBufferStatic = Internal::DataBuffer<Internal::MessageBufferStaticPo
 using MessageBufferExternalStorage =
   Internal::DataBuffer<Internal::MessageBufferExternalStoragePolicy<>>;
 
-} // namespace RTOS::DataBuffers
+} // namespace RTOS::Buffers
