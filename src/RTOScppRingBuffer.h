@@ -36,7 +36,7 @@ class IRingBuffer {
 
 // Comparison operator for QueueSet
 inline bool operator==(const QueueSetMemberHandle_t& queue_set_member, const IRingBuffer& ringbuf) {
-  return queue_set_member == ringbuf.getHandle();
+  return xRingbufferCanRead(ringbuf.getHandle(), queue_set_member);
 }
 
 namespace Internal {
