@@ -61,6 +61,8 @@ class _QueueBase : public QueueInterface {
       : QueueInterface(handle) {}
 
   public:
+  void overwrite(const T& item) const { xQueueOverwrite(_handle, &item); }
+
   bool push(const T& item, const TickType_t ticks_to_wait = portMAX_DELAY) const {
     return xQueueSendToFront(_handle, &item, ticks_to_wait);
   }
