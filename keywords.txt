@@ -1,0 +1,134 @@
+######################
+# Syntax Colouring Map
+######################
+
+#######################
+# Data types (KEYWORD1)
+#######################
+# Buffers
+StreamBufferDynamic	KEYWORD1
+StreamBufferStatic	KEYWORD1
+StreamBufferExternalStorage	KEYWORD1
+MessageBufferDynamic	KEYWORD1
+MessageBufferStatic	KEYWORD1
+MessageBufferExternalStorage	KEYWORD1
+# Locks
+MutexDynamic	KEYWORD1
+MutexStatic	KEYWORD1
+MutexRecursiveDynamic	KEYWORD1
+MutexRecursiveStatic	KEYWORD1
+SemBinaryDynamic	KEYWORD1
+SemBinaryStatic	KEYWORD1
+SemCountingDynamic	KEYWORD1
+SemCountingStatic	KEYWORD1
+# Queues
+QueueDynamic	KEYWORD1
+QueueStatic	KEYWORD1
+QueueExternalStorage	KEYWORD1
+# Queue set
+QueueSet	KEYWORD1
+# Ring buffers
+RingBufferNoSplitDynamic	KEYWORD1
+RingBufferNoSplitStatic	KEYWORD1
+RingBufferNoSplitExternalStorage	KEYWORD1
+RingBufferSplitDynamic	KEYWORD1
+RingBufferSplitStatic	KEYWORD1
+RingBufferSplitExternalStorage	KEYWORD1
+RingBufferByteDynamic	KEYWORD1
+RingBufferByteStatic	KEYWORD1
+RingBufferByteExternalStorage	KEYWORD1
+# Tasks
+TaskDynamic	KEYWORD1
+TaskStatic	KEYWORD1
+# Timers
+TimerDynamic	KEYWORD1
+TimerStatic	KEYWORD1
+
+##################################
+# Methods and Functions (KEYWORD2)
+##################################
+# Common
+getHandle	KEYWORD2
+isCreated	KEYWORD2
+send	KEYWORD2
+sendFromISR	KEYWORD2
+receive	KEYWORD2
+receiveFromISR	KEYWORD2
+reset	KEYWORD2
+isEmpty	KEYWORD2
+isFull	KEYWORD2
+getAvailableSpaces	KEYWORD2
+create	KEYWORD2
+add
+addFromISR
+getName
+
+# Buffers
+getAvailableBytes	KEYWORD2
+setTriggerLevel	KEYWORD2
+# Locks
+take	KEYWORD2
+give	KEYWORD2
+getCount	KEYWORD2
+# Queues
+getAvailableMessages	KEYWORD2
+getAvailableMessagesFromISR	KEYWORD2
+isFullFromISR	KEYWORD2
+isEmptyFromISR	KEYWORD2
+push	KEYWORD2
+pushFromISR	KEYWORD2
+pop	KEYWORD2
+popFromISR	KEYWORD2
+peek	KEYWORD2
+peekFromISR	KEYWORD2
+overwrite	KEYWORD2
+overwriteFromISR	KEYWORD2
+# Queue set
+remove	KEYWORD2
+select	KEYWORD2
+selectFromISR	KEYWORD2
+# Ring buffers
+getMaxItemSize	KEYWORD2
+getFreeSize	KEYWORD2
+returnItem	KEYWORD2
+returnItemFromISR	KEYWORD2
+# Tasks
+suspend	KEYWORD2
+resume	KEYWORD2
+getState	KEYWORD2
+abortDelay	KEYWORD2
+getParameters	KEYWORD2
+getCore	KEYWORD2
+setPriority	KEYWORD2
+getPriority	KEYWORD2
+getPriorityFromISR	KEYWORD2
+getStackSize	KEYWORD2
+notify	KEYWORD2
+notifyFromISR	KEYWORD2
+notifyAndQuery	KEYWORD2
+notifyAndQueryFromISR	KEYWORD2
+notifyGive	KEYWORD2
+notifyGiveFromISR	KEYWORD2
+notifyTake	KEYWORD2
+notifyWait	KEYWORD2
+updateStackStats	KEYWORD2
+getStackUsed	KEYWORD2
+getStackMinUsed	KEYWORD2
+getStackMaxUsed	KEYWORD2
+setup	KEYWORD2
+isValid	KEYWORD2
+# Timers
+start	KEYWORD2
+startFromISR	KEYWORD2
+stop	KEYWORD2
+stopFromISR	KEYWORD2
+isActive	KEYWORD2
+resetFromISR	KEYWORD2
+getExpiryTime	KEYWORD2
+setPeriod	KEYWORD2
+setPeriodFromISR	KEYWORD2
+getPeriod	KEYWORD2
+setTimerID	KEYWORD2
+getTimerID	KEYWORD2
+setReloadMode	KEYWORD2
+getReloadMode	KEYWORD2
