@@ -24,6 +24,7 @@ Registry](https://badges.registry.platformio.org/packages/alkonosst/library/RTOS
   - [Adding library to platformio.ini (PlatformIO)](#adding-library-to-platformioini-platformio)
   - [Using the library](#using-the-library)
     - [Including the library](#including-the-library)
+    - [Namespaces](#namespaces)
     - [Dynamic, static and external memory objects](#dynamic-static-and-external-memory-objects)
   - [RTOS objects](#rtos-objects)
     - [Using tasks](#using-tasks)
@@ -106,6 +107,33 @@ you need to include the `RTOScppESP32.h` file:
 #include "RTOScppTask.h"
 ```
 
+### Namespaces
+
+All the features are inside the `RTOS` namespace. Inside this namespace, you will find another one
+for each feature. For example, the `RTOS::Tasks` includes all the classes related to tasks. So, if you
+want to use the `TaskStatic` class, you need to use the full name:
+
+```cpp
+#include "RTOScppTask.h"
+RTOS::Tasks::TaskStatic<4096> task;
+```
+
+If you prefer, you can rename the namespace to something shorter:
+
+```cpp
+#include "RTOScppTask.h"
+namespace RT = RTOS::Tasks;
+RT::TaskStatic<4096> task;
+```
+
+Or you can use the `using` directive to avoid using the full name:
+
+```cpp
+#include "RTOScppTask.h"
+using namespace RTOS::Tasks;
+TaskStatic<4096> task;
+```
+
 ### Dynamic, static and external memory objects
 
 The library provides three types of objects: **Dynamic**, **Static** and some of them have **External**:
@@ -131,6 +159,9 @@ completion feature of your IDE or checking the source code of each object type.
 ### Using tasks
 
 ```cpp
+#include "RTOScppTask.h"
+using namespace RTOS::Tasks;
+
 // Dynamic version example
 // - The stack size is 4096 bytes
 // - Empty constructor, so you need to call the `create(parameters)` method to create the task
@@ -156,6 +187,9 @@ void setup() {
 ### Using timers
 
 ```cpp
+#include "RTOScppTimer.h"
+using namespace RTOS::Timers;
+
 // Dynamic version example
 // - Empty constructor, so you need to call the `create(parameters)` method to create the timer
 void timer1Callback(TimerHandle_t timer);
@@ -188,6 +222,9 @@ void setup() {
 ### Using locks
 
 ```cpp
+#include "RTOScppLock.h"
+using namespace RTOS::Locks;
+
 // Mutexes
 MutexDynamic mutex_1; // Dynamic version
 MutexStatic mutex_2; // Static version
@@ -208,6 +245,9 @@ SemCountingStatic</*max count*/ 5, /*initial count*/ 0> sem_counting_2; // Stati
 ### Using queues
 
 ```cpp
+#include "RTOScppQueue.h"
+using namespace RTOS::Queues;
+
 // Dynamic version
 QueueDynamic</*type*/ uint32_t, /*length*/ 10> queue_1;
 
@@ -227,6 +267,9 @@ void setup() {
 ### Using FreeRTOS buffers
 
 ```cpp
+#include "RTOScppBuffer.h"
+using namespace RTOS::Buffers;
+
 // Stream buffers
 StreamBufferDynamic</*trigger bytes*/ 5, /*length*/ 10> stream_buffer_1; // Dynamic version
 StreamBufferStatic</*trigger bytes*/ 5, /*length*/ 10> stream_buffer_2; // Static version
@@ -251,6 +294,9 @@ void setup() {
 ### Using ESP-IDF Ring Buffers
 
 ```cpp
+#include "RTOScppRingBuffer.h"
+using namespace RTOS::RingBuffers;
+
 // No-split ring buffers
 RingBufferNoSplitDynamic</*type*/ char, /*length*/ 10> ring_buffer_no_split_1; // Dynamic version
 RingBufferNoSplitStatic</*type*/ char, /*length*/ 10> ring_buffer_no_split_2; // Static version
@@ -284,6 +330,9 @@ void setup() {
 ### Using queue sets
 
 ```cpp
+#include "RTOScppQueueSet.h"
+using namespace RTOS::QueueSets;
+
 // Binary Semaphore
 SemBinaryStatic sem;
 
