@@ -82,7 +82,7 @@ class ITask {
 
   /**
    * @brief Get the name of the task.
-   * @return const char* Task name, nullptr if the task is not created.
+   * @return const char* Task name.
    */
   virtual const char* getName() const = 0;
 
@@ -452,12 +452,9 @@ class Task : public ITask {
 
   /**
    * @brief Get the name of the task.
-   * @return const char* Task name, nullptr if the task is not created.
+   * @return const char* Task name.
    */
-  const char* getName() const {
-    if (!isCreated()) return nullptr;
-    return _policy.getName();
-  }
+  const char* getName() const { return _policy.getName(); }
 
   /**
    * @brief Get the parameters of the task.
