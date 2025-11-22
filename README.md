@@ -8,9 +8,18 @@
   <b>Make your real-time application development a breeze!</b>
 </p>
 
-[![arduino-library-badge](https://www.ardu-badge.com/badge/RTOScppESP32.svg?)](https://www.ardu-badge.com/RTOScppESP32)
-[![PlatformIO
-Registry](https://badges.registry.platformio.org/packages/alkonosst/library/RTOScppESP32.svg)](https://registry.platformio.org/libraries/alkonosst/RTOScppESP32)
+<p align="center">
+  <a href="https://www.ardu-badge.com/RTOScppESP32">
+    <img src="https://www.ardu-badge.com/badge/RTOScppESP32.svg?" alt="Arduino Library Badge">
+  </a>
+  <a href="https://registry.platformio.org/libraries/alkonosst/RTOScppESP32">
+    <img src="https://badges.registry.platformio.org/packages/alkonosst/library/RTOScppESP32.svg" alt="PlatformIO Registry">
+  </a>
+  <br><br>
+  <a href="https://ko-fi.com/alkonosst">
+    <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Ko-fi">
+    </a>
+</p>
 
 ---
 
@@ -34,6 +43,7 @@ Registry](https://badges.registry.platformio.org/packages/alkonosst/library/RTOS
     - [Using FreeRTOS buffers](#using-freertos-buffers)
     - [Using ESP-IDF Ring Buffers](#using-esp-idf-ring-buffers)
     - [Using queue sets](#using-queue-sets)
+- [License](#license)
 
 # Description
 
@@ -359,3 +369,7 @@ void loop() {
   }
 }
 ```
+
+# License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
