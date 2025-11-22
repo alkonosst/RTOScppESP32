@@ -1,6 +1,6 @@
 {
   "name": "RTOScppESP32",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "authors": {
     "name": "Maximiliano Ramirez",
     "email": "maximiliano.ramirezbravo@gmail.com"
@@ -11,7 +11,7 @@
   },
   "description": "RTOScppESP32 provides a comprehensive and intuitive interface for FreeRTOS functionalities. It simplifies the creation and management of tasks, timers, queues, buffers and locks, enabling efficient real-time application with clean and maintainable code.",
   "keywords": "arduino, espressif, esp32, rtos, freertos, cpp, abstraction, tool, framework",
-  "license": "GPL-3.0-or-later",
+  "license": "MIT",
   "frameworks": "arduino",
   "platforms": "espressif32"
 }
