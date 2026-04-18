@@ -1,5 +1,5 @@
 /**
- * SPDX-FileCopyrightText: 2025 Maximiliano Ramirez <maximiliano.ramirezbravo@gmail.com>
+ * SPDX-FileCopyrightText: 2026 Maximiliano Ramirez <maximiliano.ramirezbravo@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -32,6 +32,13 @@ class ITask {
   virtual TaskHandle_t getHandle() const = 0;
 
   /**
+   * @brief Get the name of the task.
+   * @return const char* Name of the task. Default is "RtosTask" if no name is provided or the name
+   * exceeds configMAX_TASK_NAME_LEN.
+   */
+  virtual const char* getName() const = 0;
+
+  /**
    * @brief Create the task with the already set parameters.
    * @return true Task created.
    */
@@ -39,7 +46,8 @@ class ITask {
 
   /**
    * @brief Create the task with the specified parameters.
-   * @param name Task name
+   * @param name Task name. Default is "RtosTask" if no name is provided or the name exceeds
+   * configMAX_TASK_NAME_LEN.
    * @param function Task function
    * @param priority Task priority (0 to configMAX_PRIORITIES - 1)
    * @param parameters Task parameters
@@ -79,12 +87,6 @@ class ITask {
    * the Blocked state.
    */
   virtual bool abortDelay() const = 0;
-
-  /**
-   * @brief Get the name of the task.
-   * @return const char* Task name.
-   */
-  virtual const char* getName() const = 0;
 
   /**
    * @brief Get the parameters of the task.
@@ -249,7 +251,7 @@ class Policy {
   public:
   Policy()
       : _handle(nullptr)
-      , _name(nullptr)
+      , _name("RtosTask")
       , _function(nullptr)
       , _priority(0)
       , _parameters(nullptr)
@@ -262,7 +264,8 @@ class Policy {
 
   bool setup(const char* name, TaskFunction_t function, uint8_t priority,
     void* parameters = nullptr, BaseType_t core = ARDUINO_RUNNING_CORE) {
-    _name       = name;
+    if (name && strlen(name) <= configMAX_TASK_NAME_LEN) this->_name = name;
+
     _parameters = parameters;
     _function   = function;
     _priority   = priority;
@@ -272,8 +275,7 @@ class Policy {
   }
 
   bool isValid() const {
-    if (_name == nullptr || _function == nullptr || _priority >= configMAX_PRIORITIES ||
-        !taskVALID_CORE_ID(_core))
+    if (_function == nullptr || _priority >= configMAX_PRIORITIES || !taskVALID_CORE_ID(_core))
       return false;
 
     return true;
@@ -379,17 +381,25 @@ class Task : public ITask {
    * caution.
    * @return TaskHandle_t Task handle, nullptr if the task is not created.
    */
-  TaskHandle_t getHandle() const { return _policy.getHandle(); }
+  TaskHandle_t getHandle() const override { return _policy.getHandle(); }
+
+  /**
+   * @brief Get the name of the task.
+   * @return const char* Name of the task. Default is "RtosTask" if no name is provided or the name
+   * exceeds configMAX_TASK_NAME_LEN.
+   */
+  const char* getName() const override { return _policy.getName(); }
 
   /**
    * @brief Create the task with the already set parameters.
    * @return true Task created.
    */
-  bool create() { return _policy.create(); }
+  bool create() override { return _policy.create(); }
 
   /**
    * @brief Create the task with the specified parameters.
-   * @param name Task name
+   * @param name Task name. Default is "RtosTask" if no name is provided or the name exceeds
+   * configMAX_TASK_NAME_LEN.
    * @param function Task function
    * @param priority Task priority (0 to configMAX_PRIORITIES - 1)
    * @param parameters Task parameters
@@ -397,7 +407,7 @@ class Task : public ITask {
    * @return true Task created.
    */
   bool create(const char* name, TaskFunction_t function, uint8_t priority,
-    void* parameters = nullptr, uint8_t running_core = ARDUINO_RUNNING_CORE) {
+    void* parameters = nullptr, uint8_t running_core = ARDUINO_RUNNING_CORE) override {
     if (!_policy.setup(name, function, priority, parameters, running_core)) {
       return false;
     }
@@ -409,13 +419,13 @@ class Task : public ITask {
    * @brief Check if the task is created.
    * @return true Task is created.
    */
-  bool isCreated() const { return _policy.isCreated(); }
+  bool isCreated() const override { return _policy.isCreated(); }
 
   /**
    * @brief Suspend the task.
    * @return true Task suspended successfully, false if the task is not created.
    */
-  bool suspend() const {
+  bool suspend() const override {
     if (!isCreated()) return false;
     vTaskSuspend(getHandle());
     return true;
@@ -425,7 +435,7 @@ class Task : public ITask {
    * @brief Resume the task.
    * @return true Task resumed successfully, false if the task is not created.
    */
-  bool resume() const {
+  bool resume() const override {
     if (!isCreated()) return false;
     vTaskResume(getHandle());
     return true;
@@ -435,7 +445,7 @@ class Task : public ITask {
    * @brief Get the state of the task.
    * @return eTaskState Task state, eTaskState::eInvalid if the task is not created.
    */
-  eTaskState getState() const {
+  eTaskState getState() const override {
     if (!isCreated()) return eTaskState::eInvalid;
     return eTaskGetState(getHandle());
   }
@@ -445,22 +455,16 @@ class Task : public ITask {
    * @return true Delay aborted successfully, false if the task is not created or the task is not in
    * the Blocked state.
    */
-  bool abortDelay() const {
+  bool abortDelay() const override {
     if (!isCreated()) return false;
     return xTaskAbortDelay(getHandle());
   }
 
   /**
-   * @brief Get the name of the task.
-   * @return const char* Task name.
-   */
-  const char* getName() const { return _policy.getName(); }
-
-  /**
    * @brief Get the parameters of the task.
    * @return void* Task parameters, nullptr if the task is not created or no parameters were set.
    */
-  void* getParameters() const {
+  void* getParameters() const override {
     if (!isCreated()) return nullptr;
     return _policy.getParameters();
   }
@@ -469,7 +473,7 @@ class Task : public ITask {
    * @brief Get the core where the task is running.
    * @return uint8_t Core number, 0xFF if the task is not created.
    */
-  uint8_t getCore() const {
+  uint8_t getCore() const override {
     if (!isCreated()) return 0xFF;
     return _policy.getCore();
   }
@@ -479,7 +483,7 @@ class Task : public ITask {
    * @param priority Task priority (0 to configMAX_PRIORITIES - 1)
    * @return true Priority set successfully, false if the task is not created.
    */
-  bool setPriority(const uint8_t priority) {
+  bool setPriority(const uint8_t priority) override {
     if (!isCreated()) return false;
     vTaskPrioritySet(getHandle(), priority);
     return true;
@@ -489,7 +493,7 @@ class Task : public ITask {
    * @brief Get the priority of the task.
    * @return uint8_t Task priority, 0xFF if the task is not created.
    */
-  uint8_t getPriority() const {
+  uint8_t getPriority() const override {
     if (!isCreated()) return 0xFF;
     return uxTaskPriorityGet(getHandle());
   }
@@ -498,7 +502,7 @@ class Task : public ITask {
    * @brief Get the priority of the task from an ISR.
    * @return uint8_t Task priority, 0xFF if the task is not created.
    */
-  uint8_t getPriorityFromISR() const {
+  uint8_t getPriorityFromISR() const override {
     if (!isCreated()) return 0xFF;
     return uxTaskPriorityGetFromISR(getHandle());
   }
@@ -507,7 +511,7 @@ class Task : public ITask {
    * @brief Get the stack size of the task.
    * @return uint32_t Stack size.
    */
-  uint32_t getStackSize() const { return Policy::_stack_size; }
+  uint32_t getStackSize() const override { return Policy::_stack_size; }
 
   /**
    * @brief Notify the task.
@@ -516,7 +520,7 @@ class Task : public ITask {
    * @return true Notification sent successfully, false if the task is not created or failed to send
    * the notification.
    */
-  bool notify(const uint32_t value, const eNotifyAction action) const {
+  bool notify(const uint32_t value, const eNotifyAction action) const override {
     if (!isCreated()) return false;
     return xTaskNotify(getHandle(), value, action);
   }
@@ -531,7 +535,7 @@ class Task : public ITask {
    * the notification.
    */
   bool notifyFromISR(const uint32_t value, const eNotifyAction action,
-    BaseType_t& task_woken) const {
+    BaseType_t& task_woken) const override {
     if (!isCreated()) return false;
     return xTaskNotifyFromISR(getHandle(), value, action, &task_woken);
   }
@@ -544,7 +548,8 @@ class Task : public ITask {
    * @return true Notification sent successfully, false if the task is not created or failed to send
    * the notification.
    */
-  bool notifyAndQuery(const uint32_t value, const eNotifyAction action, uint32_t& old_value) const {
+  bool notifyAndQuery(const uint32_t value, const eNotifyAction action,
+    uint32_t& old_value) const override {
     if (!isCreated()) return false;
     return xTaskNotifyAndQuery(getHandle(), value, action, &old_value);
   }
@@ -560,7 +565,7 @@ class Task : public ITask {
    * the notification.
    */
   bool notifyAndQueryFromISR(const uint32_t value, const eNotifyAction action, uint32_t& old_value,
-    BaseType_t& task_woken) const {
+    BaseType_t& task_woken) const override {
     if (!isCreated()) return false;
     return xTaskNotifyAndQueryFromISR(getHandle(), value, action, &old_value, &task_woken);
   }
@@ -570,7 +575,7 @@ class Task : public ITask {
    * notification value by 1. The task can wait for the notification using notifyTake().
    * @return true Notification sent successfully, false if the task is not created.
    */
-  bool notifyGive() const {
+  bool notifyGive() const override {
     if (!isCreated()) return false;
     return xTaskNotifyGive(getHandle());
   }
@@ -583,7 +588,7 @@ class Task : public ITask {
    * the ISR.
    * @return true Notification sent successfully, false if the task is not created.
    */
-  bool notifyGiveFromISR(BaseType_t& task_woken) const {
+  bool notifyGiveFromISR(BaseType_t& task_woken) const override {
     if (!isCreated()) return false;
     vTaskNotifyGiveFromISR(getHandle(), &task_woken);
     return true;
@@ -597,7 +602,7 @@ class Task : public ITask {
    * @param ticks_to_wait Maximum time to wait for the notification.
    * @return uint32_t Value of the notification.
    */
-  uint32_t notifyTake(const bool clear, const TickType_t ticks_to_wait) const {
+  uint32_t notifyTake(const bool clear, const TickType_t ticks_to_wait) const override {
     if (!isCreated()) return 0;
     return ulTaskNotifyTake(clear, ticks_to_wait);
   }
@@ -613,7 +618,7 @@ class Task : public ITask {
    * receive the notification.
    */
   bool notifyWait(const uint32_t clear_on_entry, const uint32_t clear_on_exit, uint32_t& value,
-    const TickType_t ticks_to_wait) const {
+    const TickType_t ticks_to_wait) const override {
     if (!isCreated()) return false;
     return xTaskNotifyWait(clear_on_entry, clear_on_exit, &value, ticks_to_wait);
   }
@@ -623,7 +628,7 @@ class Task : public ITask {
    * stack usage.
    * @return true Stack statistics updated successfully, false if the task is not created.
    */
-  bool updateStackStats() {
+  bool updateStackStats() override {
     if (!isCreated()) return false;
 
     _stack_used = Policy::_stack_size - uxTaskGetStackHighWaterMark(getHandle());
@@ -637,7 +642,7 @@ class Task : public ITask {
    * @brief Get the stack used by the task.
    * @return uint32_t Stack used.
    */
-  uint32_t getStackUsed() const {
+  uint32_t getStackUsed() const override {
     if (!isCreated()) return 0;
     return _stack_used;
   }
@@ -646,7 +651,7 @@ class Task : public ITask {
    * @brief Get the minimum stack used by the task.
    * @return uint32_t Minimum stack used.
    */
-  uint32_t getStackMinUsed() const {
+  uint32_t getStackMinUsed() const override {
     if (!isCreated()) return 0;
     return _stack_min;
   }
@@ -655,7 +660,7 @@ class Task : public ITask {
    * @brief Get the maximum stack used by the task.
    * @return uint32_t Maximum stack used.
    */
-  uint32_t getStackMaxUsed() const {
+  uint32_t getStackMaxUsed() const override {
     if (!isCreated()) return 0;
     return _stack_max;
   }
@@ -664,7 +669,7 @@ class Task : public ITask {
    * @brief Check if the task is created.
    * @return true Task is created.
    */
-  explicit operator bool() const { return isCreated(); }
+  explicit operator bool() const override { return isCreated(); }
 
   private:
   Policy _policy;

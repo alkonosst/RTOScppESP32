@@ -3,7 +3,6 @@
 #include "RTOScppBuffer.h"
 
 using namespace RTOS::Buffers;
-static constexpr const char* tag = "test_buffers";
 
 /* ---------------------------------------- Data Buffers ---------------------------------------- */
 static char tx_buffer[]         = "123456789";
@@ -31,6 +30,10 @@ void test_sb_creation() {
 
   TEST_ASSERT_NOT_NULL(ext_buffer);
   TEST_ASSERT_TRUE(sb_ext.create(ext_buffer));
+
+  TEST_ASSERT_EQUAL_STRING("RtosBuffer", sb_dyn.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosBuffer", sb_st.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosBuffer", sb_ext.getName());
 }
 
 void test_sb_send_receive() {
@@ -106,6 +109,10 @@ void test_mb_creation() {
 
   TEST_ASSERT_NOT_NULL(ext_buffer);
   TEST_ASSERT_TRUE(mb_ext.create(ext_buffer));
+
+  TEST_ASSERT_EQUAL_STRING("RtosBuffer", mb_dyn.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosBuffer", mb_st.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosBuffer", mb_ext.getName());
 }
 
 void test_mb_send_receive() {
@@ -138,32 +145,27 @@ void test_mb_send_receive() {
   TEST_ASSERT_EQUAL_STRING(tx_buffer, rx_buffer);
   TEST_ASSERT_TRUE(mb_ext.isEmpty());
 }
-/* ---------------------------------------------------------------------------------------------- */
 
-/* ------------------------------------------ USB Logs ------------------------------------------ */
-SemaphoreHandle_t log_mutex = nullptr;
+void test_custom_names() {
+  static constexpr const char* name = "CustomName";
 
-int redirectLogs(const char* str, va_list list) {
-  if (log_mutex != nullptr) xSemaphoreTake(log_mutex, portMAX_DELAY);
+  static StreamBufferDynamic<buffer_size, trigger_bytes> sb_dyn_named(name);
+  static StreamBufferStatic<buffer_size, trigger_bytes> sb_st_named(name);
+  static MessageBufferDynamic<buffer_size> mb_dyn_named(name);
+  static MessageBufferStatic<buffer_size> mb_st_named(name);
 
-  static char buffer[2048];
-  int ret = vsnprintf(buffer, sizeof(buffer), str, list);
-  Serial.write(buffer);
-
-  if (log_mutex != nullptr) xSemaphoreGive(log_mutex);
-
-  return ret;
+  TEST_ASSERT_EQUAL_STRING(name, sb_dyn_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, sb_st_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, mb_dyn_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, mb_st_named.getName());
 }
 /* ---------------------------------------------------------------------------------------------- */
 
 /* ---------------------------------------------------------------------------------------------- */
 void setup() {
-  log_mutex = xSemaphoreCreateMutex();
-  esp_log_set_vprintf(redirectLogs);
-  esp_log_level_set("*", ESP_LOG_VERBOSE);
-  delay(3000);
+  Serial.begin(115200);
+  delay(1000);
 
-  ESP_LOGI(tag, "Running tests...");
   UNITY_BEGIN();
 
   RUN_TEST(test_sb_creation);
@@ -172,10 +174,10 @@ void setup() {
   RUN_TEST(test_sb_change_trigger_level);
   RUN_TEST(test_mb_creation);
   RUN_TEST(test_mb_send_receive);
+  RUN_TEST(test_custom_names);
 
-  ESP_LOGI(tag, "Finishing tests...");
   UNITY_END();
 }
 
-void loop() { vTaskDelete(nullptr); }
+void loop() {}
 /* ---------------------------------------------------------------------------------------------- */

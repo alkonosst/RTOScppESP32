@@ -103,7 +103,7 @@ lib_deps =
 
 ; Release vx.y.z (using an exact version is recommended)
 lib_deps =
-  https://github.com/alkonosst/RTOScppESP32.git#v1.0.0
+  https://github.com/alkonosst/RTOScppESP32.git#v1.1.0
 ```
 
 ## Using the library
@@ -165,6 +165,9 @@ microcontroller with limited resources.
 
 For now, only the constructors are explained here. You can check the methods using the code
 completion feature of your IDE or checking the source code of each object type.
+
+All objects have a name parameter that is used for debugging purposes (**with a default name if you
+don't provide one**). It is a good practice to give a meaningful name to each object to make it easier to identify them in the debugging process.
 
 ### Using tasks
 

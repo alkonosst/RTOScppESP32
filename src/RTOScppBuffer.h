@@ -1,5 +1,5 @@
 /**
- * SPDX-FileCopyrightText: 2025 Maximiliano Ramirez <maximiliano.ramirezbravo@gmail.com>
+ * SPDX-FileCopyrightText: 2026 Maximiliano Ramirez <maximiliano.ramirezbravo@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -31,6 +31,12 @@ class IBuffer {
    * @return StreamBufferHandle_t Buffer handle, nullptr if the buffer is not created.
    */
   virtual StreamBufferHandle_t getHandle() const = 0;
+
+  /**
+   * @brief Get the name of the buffer. Useful for debugging and logging purposes.
+   * @return const char* Name of the buffer. Default is "RtosBuffer" if no name is provided.
+   */
+  virtual const char* getName() const = 0;
 
   /**
    * @brief Check if the buffer is created.
@@ -128,12 +134,15 @@ class Policy {
   StreamBufferHandle_t getHandle() const { return _handle; }
 
   bool isCreated() const { return _handle != nullptr; }
+  const char* getName() const { return _name; }
 
   protected:
   Policy()
-      : _handle(nullptr) {}
+      : _handle(nullptr)
+      , _name("RtosBuffer") {}
 
   StreamBufferHandle_t _handle;
+  const char* _name;
 };
 
 // CRTP stream buffer base policy class
@@ -157,8 +166,9 @@ template <uint32_t BufferSize, uint32_t TriggerBytes>
 class StreamBufferDynamicPolicy
     : public StreamBufferPolicy<StreamBufferDynamicPolicy<BufferSize, TriggerBytes>> {
   public:
-  StreamBufferDynamicPolicy() {
+  StreamBufferDynamicPolicy(const char* name = nullptr) {
     this->_handle = xStreamBufferGenericCreate(BufferSize, TriggerBytes, false, nullptr, nullptr);
+    if (name) this->_name = name;
   }
 };
 
@@ -167,7 +177,7 @@ template <uint32_t BufferSize, uint32_t TriggerBytes>
 class StreamBufferStaticPolicy
     : public StreamBufferPolicy<StreamBufferStaticPolicy<BufferSize, TriggerBytes>> {
   public:
-  StreamBufferStaticPolicy() {
+  StreamBufferStaticPolicy(const char* name = nullptr) {
     this->_handle = xStreamBufferGenericCreateStatic(BufferSize + 1,
       TriggerBytes,
       false,
@@ -175,6 +185,7 @@ class StreamBufferStaticPolicy
       &_buf_buffer,
       nullptr,
       nullptr);
+    if (name) this->_name = name;
   }
 
   private:
@@ -188,6 +199,10 @@ class StreamBufferExternalStoragePolicy
     : public StreamBufferPolicy<StreamBufferExternalStoragePolicy<BufferSize, TriggerBytes>> {
   public:
   static constexpr uint32_t REQUIRED_SIZE = BufferSize + 2;
+
+  StreamBufferExternalStoragePolicy(const char* name = nullptr) {
+    if (name) this->_name = name;
+  }
 
   /**
    * @brief Create the stream buffer with an external memory allocation.
@@ -216,8 +231,9 @@ class StreamBufferExternalStoragePolicy
 template <uint32_t BufferSize>
 class MessageBufferDynamicPolicy : public Policy<MessageBufferDynamicPolicy<BufferSize>> {
   public:
-  MessageBufferDynamicPolicy() {
+  MessageBufferDynamicPolicy(const char* name = nullptr) {
     this->_handle = xStreamBufferGenericCreate(BufferSize, 0, true, nullptr, nullptr);
+    if (name) this->_name = name;
   }
 };
 
@@ -225,7 +241,7 @@ class MessageBufferDynamicPolicy : public Policy<MessageBufferDynamicPolicy<Buff
 template <uint32_t BufferSize>
 class MessageBufferStaticPolicy : public Policy<MessageBufferStaticPolicy<BufferSize>> {
   public:
-  MessageBufferStaticPolicy() {
+  MessageBufferStaticPolicy(const char* name = nullptr) {
     this->_handle = xStreamBufferGenericCreateStatic(BufferSize + 1,
       0,
       true,
@@ -233,6 +249,7 @@ class MessageBufferStaticPolicy : public Policy<MessageBufferStaticPolicy<Buffer
       &_buf_buffer,
       nullptr,
       nullptr);
+    if (name) this->_name = name;
   }
 
   private:
@@ -246,6 +263,10 @@ class MessageBufferExternalStoragePolicy
     : public Policy<MessageBufferExternalStoragePolicy<BufferSize>> {
   public:
   static constexpr uint32_t REQUIRED_SIZE = BufferSize + 2;
+
+  MessageBufferExternalStoragePolicy(const char* name = nullptr) {
+    if (name) this->_name = name;
+  }
 
   /**
    * @brief Create the message buffer with an external memory allocation.
@@ -286,6 +307,12 @@ class DataBuffer : public IBuffer, public Policy {
    * @return StreamBufferHandle_t Buffer handle, nullptr if the buffer is not created.
    */
   StreamBufferHandle_t getHandle() const override { return Policy::getHandle(); }
+
+  /**
+   * @brief Get the name of the buffer. Useful for debugging and logging purposes.
+   * @return const char* Name of the buffer. Default is "RtosBuffer" if no name is provided.
+   */
+  virtual const char* getName() const override { return Policy::getName(); }
 
   /**
    * @brief Check if the buffer is created.

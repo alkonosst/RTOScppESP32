@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include <unity.h>
 
 #include "RTOScppQueueSet.h"
@@ -7,7 +6,6 @@ using namespace RTOS::QueueSets;
 using namespace RTOS::Locks;
 using namespace RTOS::Queues;
 using namespace RTOS::RingBuffers;
-static constexpr const char* tag = "test_queue_set";
 
 /* ------------------------------------- Items for Queue Set ------------------------------------ */
 QueueStatic<uint32_t, 3> queue;
@@ -24,6 +22,8 @@ void test_objects_creation() {
   TEST_ASSERT_TRUE(rbuffer);
   TEST_ASSERT_TRUE(sem);
   TEST_ASSERT_TRUE(q_set);
+
+  TEST_ASSERT_EQUAL_STRING("RtosQueueSet", q_set.getName());
 }
 
 void test_add_objects_to_queueset() {
@@ -73,46 +73,33 @@ void test_remove_objects_from_queueset() {
   TEST_ASSERT_TRUE(q_set.remove(rbuffer));
   TEST_ASSERT_TRUE(q_set.remove(sem));
 }
-/* ---------------------------------------------------------------------------------------------- */
 
-/* ------------------------------------------ USB Logs ------------------------------------------ */
-SemaphoreHandle_t log_mutex = nullptr;
+void test_custom_names() {
+  static constexpr const char* name = "CustomQueueSet";
 
-int redirectLogs(const char* str, va_list list) {
-  if (log_mutex != nullptr) xSemaphoreTake(log_mutex, portMAX_DELAY);
-
-  static char buffer[2048];
-  int ret = vsnprintf(buffer, sizeof(buffer), str, list);
-  Serial.write(buffer);
-
-  if (log_mutex != nullptr) xSemaphoreGive(log_mutex);
-
-  return ret;
+  static QueueSet q_set_named(3, name);
+  TEST_ASSERT_TRUE(q_set_named);
+  TEST_ASSERT_EQUAL_STRING(name, q_set_named.getName());
 }
 /* ---------------------------------------------------------------------------------------------- */
 
 /* ---------------------------------------------------------------------------------------------- */
 void setup() {
-  log_mutex = xSemaphoreCreateMutex();
-  esp_log_set_vprintf(redirectLogs);
-  esp_log_level_set("*", ESP_LOG_VERBOSE);
   Serial.begin(115200);
-  delay(2000);
+  delay(1000);
 
-  ESP_LOGI(tag, "Running tests...");
   UNITY_BEGIN();
 
   RUN_TEST(test_objects_creation);
-
   RUN_TEST(test_add_objects_to_queueset);
   RUN_TEST(test_select_queue_from_queueset);
   RUN_TEST(test_select_ringbuffer_from_queueset);
   RUN_TEST(test_select_semaphore_from_queueset);
   RUN_TEST(test_remove_objects_from_queueset);
+  RUN_TEST(test_custom_names);
 
-  ESP_LOGI(tag, "Finishing tests...");
   UNITY_END();
 }
 
-void loop() { vTaskDelete(nullptr); }
+void loop() {}
 /* ---------------------------------------------------------------------------------------------- */

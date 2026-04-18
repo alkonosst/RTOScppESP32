@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include <unity.h>
 
 #include "RTOScppLock.h"
@@ -6,7 +5,6 @@
 #include <memory>
 
 using namespace RTOS::Locks;
-static constexpr const char* tag = "test_locks";
 
 /* -------------------------------------------- Locks ------------------------------------------- */
 MutexDynamic mutex_dyn;
@@ -113,32 +111,35 @@ void test_semaphore_counting() {
   TEST_ASSERT_EQUAL(sem_count, count_dyn);
   TEST_ASSERT_EQUAL(sem_count, count_st);
 }
-/* ---------------------------------------------------------------------------------------------- */
 
-/* ------------------------------------------ USB Logs ------------------------------------------ */
-SemaphoreHandle_t log_mutex = nullptr;
+void test_custom_names() {
+  static constexpr const char* name = "CustomLock";
 
-int redirectLogs(const char* str, va_list list) {
-  if (log_mutex != nullptr) xSemaphoreTake(log_mutex, portMAX_DELAY);
+  static MutexDynamic mutex_dyn_named(name);
+  static MutexStatic mutex_st_named(name);
+  static MutexRecursiveDynamic mutex_rec_dyn_named(name);
+  static MutexRecursiveStatic mutex_rec_st_named(name);
+  static SemBinaryDynamic sem_bin_dyn_named(name);
+  static SemBinaryStatic sem_bin_st_named(name);
+  static SemCountingDynamic<sem_count> sem_count_dyn_named(name);
+  static SemCountingStatic<sem_count> sem_count_st_named(name);
 
-  static char buffer[2048];
-  int ret = vsnprintf(buffer, sizeof(buffer), str, list);
-  Serial.write(buffer);
-
-  if (log_mutex != nullptr) xSemaphoreGive(log_mutex);
-
-  return ret;
+  TEST_ASSERT_EQUAL_STRING(name, mutex_dyn_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, mutex_st_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, mutex_rec_dyn_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, mutex_rec_st_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, sem_bin_dyn_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, sem_bin_st_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, sem_count_dyn_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, sem_count_st_named.getName());
 }
 /* ---------------------------------------------------------------------------------------------- */
 
 /* ---------------------------------------------------------------------------------------------- */
 void setup() {
-  log_mutex = xSemaphoreCreateMutex();
-  esp_log_set_vprintf(redirectLogs);
-  esp_log_level_set("*", ESP_LOG_VERBOSE);
-  delay(3000);
+  Serial.begin(115200);
+  delay(1000);
 
-  ESP_LOGI(tag, "Running tests...");
   UNITY_BEGIN();
 
   RUN_TEST(test_locks_creation);
@@ -146,10 +147,10 @@ void setup() {
   RUN_TEST(test_mutex_recursive);
   RUN_TEST(test_semaphore_binary);
   RUN_TEST(test_semaphore_counting);
+  RUN_TEST(test_custom_names);
 
-  ESP_LOGI(tag, "Finishing tests...");
   UNITY_END();
 }
 
-void loop() { vTaskDelete(nullptr); }
+void loop() {}
 /* ---------------------------------------------------------------------------------------------- */

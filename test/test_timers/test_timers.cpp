@@ -44,9 +44,11 @@ TimerStatic timer("Timer", timerCb, timer_period, nullptr, false, false);
 /* -------------------------------------------- Tests ------------------------------------------- */
 void test_timers_creation() {
   // Dynamic timers
+  TEST_ASSERT_EQUAL_STRING("TimerDynCtor", timer_dyn_ctor.getName());
   TEST_ASSERT_TRUE(timer_dyn_ctor);
   TEST_ASSERT_TRUE(timer_dyn_ctor.isCreated());
 
+  TEST_ASSERT_EQUAL_STRING("RtosTimer", timer_dyn.getName());
   TEST_ASSERT_FALSE(timer_dyn);
   TEST_ASSERT_FALSE(timer_dyn.isCreated());
   TEST_ASSERT_TRUE(timer_dyn.create(
@@ -60,9 +62,11 @@ void test_timers_creation() {
   TEST_ASSERT_TRUE(timer_dyn.isCreated());
 
   // Static timers
+  TEST_ASSERT_EQUAL_STRING("TimerStCtor", timer_st_ctor.getName());
   TEST_ASSERT_TRUE(timer_st_ctor);
   TEST_ASSERT_TRUE(timer_st_ctor.isCreated());
 
+  TEST_ASSERT_EQUAL_STRING("RtosTimer", timer_st.getName());
   TEST_ASSERT_FALSE(timer_st);
   TEST_ASSERT_FALSE(timer_st.isCreated());
   TEST_ASSERT_TRUE(timer_st.create(
@@ -76,11 +80,14 @@ void test_timers_creation() {
   TEST_ASSERT_TRUE(timer_st.isCreated());
 
   // Testing timer
+  TEST_ASSERT_EQUAL_STRING("Timer", timer.getName());
   TEST_ASSERT_TRUE(timer);
   TEST_ASSERT_TRUE(timer.isCreated());
 }
 
 void test_invalid_timer() {
+  TEST_ASSERT_EQUAL_STRING("RtosTimer", timer_invalid.getName());
+
   TEST_ASSERT_FALSE(timer_invalid.isCreated());
   TEST_ASSERT_FALSE(timer_invalid.create(nullptr, nullptr, 0, nullptr, false, false));
   TEST_ASSERT_FALSE(timer_invalid.isCreated());
@@ -132,30 +139,11 @@ void test_control() {
 }
 /* ---------------------------------------------------------------------------------------------- */
 
-/* ------------------------------------------ USB Logs ------------------------------------------ */
-SemaphoreHandle_t log_mutex = nullptr;
-
-int redirectLogs(const char* str, va_list list) {
-  if (log_mutex != nullptr) xSemaphoreTake(log_mutex, portMAX_DELAY);
-
-  static char buffer[2048];
-  int ret = vsnprintf(buffer, sizeof(buffer), str, list);
-  Serial.write(buffer);
-
-  if (log_mutex != nullptr) xSemaphoreGive(log_mutex);
-
-  return ret;
-}
-/* ---------------------------------------------------------------------------------------------- */
-
 /* ---------------------------------------------------------------------------------------------- */
 void setup() {
-  log_mutex = xSemaphoreCreateMutex();
-  esp_log_set_vprintf(redirectLogs);
-  esp_log_level_set("*", ESP_LOG_VERBOSE);
-  delay(3000);
+  Serial.begin(115200);
+  delay(1000);
 
-  ESP_LOGI(tag, "Running tests...");
   UNITY_BEGIN();
 
   RUN_TEST(test_timers_creation);
@@ -163,9 +151,8 @@ void setup() {
   RUN_TEST(test_get_timer_info);
   RUN_TEST(test_control);
 
-  ESP_LOGI(tag, "Finishing tests...");
   UNITY_END();
 }
 
-void loop() { vTaskDelete(nullptr); }
+void loop() {}
 /* ---------------------------------------------------------------------------------------------- */

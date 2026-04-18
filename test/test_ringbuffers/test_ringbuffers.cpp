@@ -1,10 +1,8 @@
-#include <Arduino.h>
 #include <unity.h>
 
 #include "RTOScppRingBuffer.h"
 
 using namespace RTOS::RingBuffers;
-static constexpr const char* tag = "test_ringbufs";
 
 /* ----------------------------------------- RingBuffers ---------------------------------------- */
 static constexpr uint8_t rb_len = 64;
@@ -48,6 +46,16 @@ void test_rb_creation() {
   rb_byte_ext_buffer = static_cast<uint8_t*>(malloc(rb_byte_ext.REQUIRED_SIZE));
   TEST_ASSERT_NOT_NULL(rb_byte_ext_buffer);
   TEST_ASSERT_TRUE(rb_byte_ext.create(rb_byte_ext_buffer));
+
+  TEST_ASSERT_EQUAL_STRING("RtosRingBuffer", rb_nosp_dyn.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosRingBuffer", rb_nosp_st.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosRingBuffer", rb_nosp_ext.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosRingBuffer", rb_sp_dyn.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosRingBuffer", rb_sp_st.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosRingBuffer", rb_sp_ext.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosRingBuffer", rb_byte_dyn.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosRingBuffer", rb_byte_st.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosRingBuffer", rb_byte_ext.getName());
 }
 
 void test_rb_nosplit_send_recv() {
@@ -318,42 +326,70 @@ void test_rb_byte_send_recv() {
   TEST_ASSERT_EQUAL_MEMORY(item_to_send, item_recv, item_recv_size);
   rb_byte_ext.returnItem(item_recv);
 }
-/* ---------------------------------------------------------------------------------------------- */
 
-/* ------------------------------------------ USB Logs ------------------------------------------ */
-SemaphoreHandle_t log_mutex = nullptr;
+void test_custom_names() {
+  static constexpr const char* name = "CustomRingBuffer";
 
-int redirectLogs(const char* str, va_list list) {
-  if (log_mutex != nullptr) xSemaphoreTake(log_mutex, portMAX_DELAY);
+  static RingBufferNoSplitDynamic<char, rb_len> rb_nosp_dyn_named(name);
+  static RingBufferNoSplitStatic<char, rb_len> rb_nosp_st_named(name);
+  static RingBufferNoSplitExternalStorage<char, rb_len> rb_nosp_ext_named(name);
+  static RingBufferSplitDynamic<char, rb_len> rb_sp_dyn_named(name);
+  static RingBufferSplitStatic<char, rb_len> rb_sp_st_named(name);
+  static RingBufferSplitExternalStorage<char, rb_len> rb_sp_ext_named(name);
+  static RingBufferByteDynamic<rb_len> rb_byte_dyn_named(name);
+  static RingBufferByteStatic<rb_len> rb_byte_st_named(name);
+  static RingBufferByteExternalStorage<rb_len> rb_byte_ext_named(name);
 
-  static char buffer[2048];
-  int ret = vsnprintf(buffer, sizeof(buffer), str, list);
-  Serial.write(buffer);
+  TEST_ASSERT_TRUE(rb_nosp_dyn_named);
+  TEST_ASSERT_TRUE(rb_nosp_st_named);
 
-  if (log_mutex != nullptr) xSemaphoreGive(log_mutex);
+  uint8_t* rb_nosp_ext_named_buffer =
+    static_cast<uint8_t*>(malloc(rb_nosp_ext_named.REQUIRED_SIZE));
+  TEST_ASSERT_NOT_NULL(rb_nosp_ext_named_buffer);
+  TEST_ASSERT_TRUE(rb_nosp_ext_named.create(rb_nosp_ext_named_buffer));
 
-  return ret;
+  TEST_ASSERT_TRUE(rb_sp_dyn_named);
+  TEST_ASSERT_TRUE(rb_sp_st_named);
+
+  uint8_t* rb_sp_ext_named_buffer = static_cast<uint8_t*>(malloc(rb_sp_ext_named.REQUIRED_SIZE));
+  TEST_ASSERT_NOT_NULL(rb_sp_ext_named_buffer);
+  TEST_ASSERT_TRUE(rb_sp_ext_named.create(rb_sp_ext_named_buffer));
+
+  TEST_ASSERT_TRUE(rb_byte_dyn_named);
+  TEST_ASSERT_TRUE(rb_byte_st_named);
+
+  uint8_t* rb_byte_ext_named_buffer =
+    static_cast<uint8_t*>(malloc(rb_byte_ext_named.REQUIRED_SIZE));
+  TEST_ASSERT_NOT_NULL(rb_byte_ext_named_buffer);
+  TEST_ASSERT_TRUE(rb_byte_ext_named.create(rb_byte_ext_named_buffer));
+
+  TEST_ASSERT_EQUAL_STRING(name, rb_nosp_dyn_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, rb_nosp_st_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, rb_nosp_ext_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, rb_sp_dyn_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, rb_sp_st_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, rb_sp_ext_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, rb_byte_dyn_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, rb_byte_st_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, rb_byte_ext_named.getName());
 }
 /* ---------------------------------------------------------------------------------------------- */
 
 /* ---------------------------------------------------------------------------------------------- */
 void setup() {
-  log_mutex = xSemaphoreCreateMutex();
-  esp_log_set_vprintf(redirectLogs);
-  esp_log_level_set("*", ESP_LOG_VERBOSE);
-  delay(3000);
+  Serial.begin(115200);
+  delay(1000);
 
-  ESP_LOGI(tag, "Running tests...");
   UNITY_BEGIN();
 
   RUN_TEST(test_rb_creation);
   RUN_TEST(test_rb_nosplit_send_recv);
   RUN_TEST(test_rb_split_send_recv);
   RUN_TEST(test_rb_byte_send_recv);
+  RUN_TEST(test_custom_names);
 
-  ESP_LOGI(tag, "Finishing tests...");
   UNITY_END();
 }
 
-void loop() { vTaskDelete(nullptr); }
+void loop() {}
 /* ---------------------------------------------------------------------------------------------- */

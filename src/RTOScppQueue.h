@@ -1,5 +1,5 @@
 /**
- * SPDX-FileCopyrightText: 2025 Maximiliano Ramirez <maximiliano.ramirezbravo@gmail.com>
+ * SPDX-FileCopyrightText: 2026 Maximiliano Ramirez <maximiliano.ramirezbravo@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -11,6 +11,18 @@
 #include <freertos/queue.h>
 
 namespace RTOS::Queues {
+
+/**
+ * @brief Behavior when trying to insert an item into a full queue. Safe to use with Queue Sets.
+ * Useful to avoid duplicated code whenever you want to confirm if the queue is full before sending
+ * an item.
+ * Example: a polling task that needs to send data to a queue but doesn't care if the data is lost
+ * when the queue is full.
+ */
+enum class FullBehavior {
+  Block, // Block until space is available (default)
+  Fail,  // Fail immediately if the queue is full
+};
 
 // Interface for Queue objects, useful when using pointers
 class IQueue {
@@ -30,6 +42,12 @@ class IQueue {
    * @return QueueHandle_t Queue handle, nullptr if the queue is not created.
    */
   virtual QueueHandle_t getHandle() const = 0;
+
+  /**
+   * @brief Get the name of the queue. Useful for debugging and logging purposes.
+   * @return const char* Name of the queue. Default is "RtosQueue" if no name is provided.
+   */
+  virtual const char* getName() const = 0;
 
   /**
    * @brief Check if the queue is created.
@@ -106,29 +124,35 @@ template <typename Derived>
 class Policy {
   protected:
   Policy()
-      : _handle(nullptr) {}
+      : _handle(nullptr)
+      , _name("RtosQueue") {}
 
   QueueHandle_t getHandle() const { return _handle; }
-
+  const char* getName() const { return _name; }
   bool isCreated() const { return _handle != nullptr; }
 
   protected:
   QueueHandle_t _handle;
+  const char* _name;
 };
 
 // Policy for queue with dynamic memory allocation
 template <typename T, uint32_t Length>
 class DynamicPolicy : public Policy<DynamicPolicy<T, Length>> {
   public:
-  DynamicPolicy() { this->_handle = xQueueCreate(Length, sizeof(T)); }
+  DynamicPolicy(const char* name = nullptr) {
+    this->_handle = xQueueCreate(Length, sizeof(T));
+    if (name) this->_name = name;
+  }
 };
 
 // Policy for queue with static memory allocation
 template <typename T, uint32_t Length>
 class StaticPolicy : public Policy<StaticPolicy<T, Length>> {
   public:
-  StaticPolicy() {
+  StaticPolicy(const char* name = nullptr) {
     this->_handle = xQueueCreateStatic(Length, sizeof(T), _storage, &_queue_buffer);
+    if (name) this->_name = name;
   }
 
   private:
@@ -142,7 +166,10 @@ class ExternalStoragePolicy : public Policy<ExternalStoragePolicy<T, Length>> {
   public:
   static constexpr uint32_t REQUIRED_SIZE = Length * sizeof(T);
 
-  ExternalStoragePolicy() { this->_handle = nullptr; }
+  ExternalStoragePolicy(const char* name = nullptr) {
+    this->_handle = nullptr;
+    if (name) this->_name = name;
+  }
 
   /**
    * @brief Create the queue with the specified buffer.
@@ -160,7 +187,7 @@ class ExternalStoragePolicy : public Policy<ExternalStoragePolicy<T, Length>> {
 };
 
 // Main Queue class. You need to specify the policy used
-template <typename Policy, typename T>
+template <typename Policy, typename T, FullBehavior Behavior>
 class Queue : public IQueue, public Policy {
   public:
   using Policy::Policy; // Inherit constructor
@@ -175,6 +202,12 @@ class Queue : public IQueue, public Policy {
    * @return QueueHandle_t Queue handle, nullptr if the queue is not created.
    */
   QueueHandle_t getHandle() const override { return Policy::getHandle(); }
+
+  /**
+   * @brief Get the name of the queue. Useful for debugging and logging purposes.
+   * @return const char* Name of the queue. Default is "RtosQueue" if no name is provided.
+   */
+  const char* getName() const override { return Policy::getName(); }
 
   /**
    * @brief Check if the queue is created.
@@ -216,6 +249,7 @@ class Queue : public IQueue, public Policy {
   bool reset() const override {
     if (!isCreated()) return false;
     xQueueReset(getHandle());
+    return true;
   }
 
   /**
@@ -268,6 +302,11 @@ class Queue : public IQueue, public Policy {
    */
   bool push(const T& item, const TickType_t ticks_to_wait = portMAX_DELAY) const {
     if (!isCreated()) return false;
+
+    if constexpr (Behavior == FullBehavior::Fail) {
+      if (isFull()) return false;
+    }
+
     return xQueueSendToFront(getHandle(), &item, ticks_to_wait);
   }
 
@@ -280,6 +319,11 @@ class Queue : public IQueue, public Policy {
    */
   bool pushFromISR(const T& item, BaseType_t& task_woken) const {
     if (!isCreated()) return false;
+
+    if constexpr (Behavior == FullBehavior::Fail) {
+      if (isFullFromISR()) return false;
+    }
+
     return xQueueSendToFrontFromISR(getHandle(), &item, &task_woken);
   }
 
@@ -291,6 +335,11 @@ class Queue : public IQueue, public Policy {
    */
   bool add(const T& item, const TickType_t ticks_to_wait = portMAX_DELAY) const {
     if (!isCreated()) return false;
+
+    if constexpr (Behavior == FullBehavior::Fail) {
+      if (isFull()) return false;
+    }
+
     return xQueueSendToBack(getHandle(), &item, ticks_to_wait);
   }
 
@@ -303,6 +352,11 @@ class Queue : public IQueue, public Policy {
    */
   bool addFromISR(const T& item, BaseType_t& task_woken) const {
     if (!isCreated()) return false;
+
+    if constexpr (Behavior == FullBehavior::Fail) {
+      if (isFullFromISR()) return false;
+    }
+
     return xQueueSendToBackFromISR(getHandle(), &item, &task_woken);
   }
 
@@ -376,13 +430,14 @@ class Queue : public IQueue, public Policy {
 
 } // namespace Internal
 
-template <typename T, uint32_t Length>
-using QueueDynamic = Internal::Queue<Internal::DynamicPolicy<T, Length>, T>;
+template <typename T, uint32_t Length, FullBehavior Behavior = FullBehavior::Block>
+using QueueDynamic = Internal::Queue<Internal::DynamicPolicy<T, Length>, T, Behavior>;
 
-template <typename T, uint32_t Length>
-using QueueStatic = Internal::Queue<Internal::StaticPolicy<T, Length>, T>;
+template <typename T, uint32_t Length, FullBehavior Behavior = FullBehavior::Block>
+using QueueStatic = Internal::Queue<Internal::StaticPolicy<T, Length>, T, Behavior>;
 
-template <typename T, uint32_t Length>
-using QueueExternalStorage = Internal::Queue<Internal::ExternalStoragePolicy<T, Length>, T>;
+template <typename T, uint32_t Length, FullBehavior Behavior = FullBehavior::Block>
+using QueueExternalStorage =
+  Internal::Queue<Internal::ExternalStoragePolicy<T, Length>, T, Behavior>;
 
 } // namespace RTOS::Queues
