@@ -82,7 +82,7 @@ void setup() {
   log_mutex = xSemaphoreCreateMutex();
   esp_log_set_vprintf(redirectLogs);
   esp_log_level_set("*", ESP_LOG_VERBOSE);
-  delay(3000);
+  delay(1000);
 
   ESP_LOGI(tag, "Running tests...");
   UNITY_BEGIN();
@@ -112,7 +112,7 @@ void setup() {
   UNITY_END();
 }
 
-void loop() { vTaskDelete(nullptr); }
+void loop() {}
 
 void taskDynamicCtor(void* params) {
   for (;;) {
@@ -180,46 +180,56 @@ void taskFunction(void* params) {
 
 /* -------------------------------------------- Tests ------------------------------------------- */
 void test_create_dynamic_ctor() {
+  TEST_ASSERT_EQUAL_STRING("TaskDynCtor", task_dyn_ctor.getName());
+
   TEST_ASSERT_FALSE(task_dyn_ctor.isCreated());
   TEST_ASSERT_TRUE(task_dyn_ctor.create());
   TEST_ASSERT_TRUE(task_dyn_ctor.isCreated());
 }
 
 void test_create_dynamic() {
+  TEST_ASSERT_EQUAL_STRING("RtosTask", task_dyn.getName());
+
   TEST_ASSERT_FALSE(task_dyn.isCreated());
   TEST_ASSERT_TRUE(task_dyn.create("TaskDyn", taskDynamic, 1, nullptr, ARDUINO_RUNNING_CORE));
   TEST_ASSERT_TRUE(task_dyn.isCreated());
 }
 
 void test_create_static_ctor() {
+  TEST_ASSERT_EQUAL_STRING("TaskStCtor", task_st_ctor.getName());
+
   TEST_ASSERT_FALSE(task_st_ctor.isCreated());
   TEST_ASSERT_TRUE(task_st_ctor.create());
   TEST_ASSERT_TRUE(task_st_ctor.isCreated());
 }
 
 void test_create_static() {
+  TEST_ASSERT_EQUAL_STRING("RtosTask", task_st.getName());
+
   TEST_ASSERT_FALSE(task_st.isCreated());
   TEST_ASSERT_TRUE(task_st.create("TaskSt", taskStatic, 1, nullptr, ARDUINO_RUNNING_CORE));
   TEST_ASSERT_TRUE(task_st.isCreated());
 }
 
 void test_create_testing_task() {
+  TEST_ASSERT_EQUAL_STRING("task", task.getName());
+
   TEST_ASSERT_FALSE(task.isCreated());
   TEST_ASSERT_TRUE(task.create());
   TEST_ASSERT_TRUE(task.isCreated());
 }
 
 void test_invalid_task() {
+  TEST_ASSERT_EQUAL_STRING("RtosTask", task_invalid.getName());
+
   TEST_ASSERT_FALSE(task_invalid.isCreated());
   TEST_ASSERT_FALSE(task_invalid.create(nullptr, nullptr, 0));
   TEST_ASSERT_FALSE(task_invalid.isCreated());
 
-  const char* name = task_invalid.getName();
   void* params     = task_invalid.getParameters();
   uint8_t core     = task_invalid.getCore();
   uint8_t priority = task_invalid.getPriority();
 
-  TEST_ASSERT_NULL(name);
   TEST_ASSERT_NULL(params);
   TEST_ASSERT_EQUAL(0xFF, core);
   TEST_ASSERT_EQUAL(0xFF, priority);
@@ -235,7 +245,7 @@ void test_get_task_info() {
   TEST_ASSERT_EQUAL(123, static_cast<MyParams*>(params)->value);
 
   uint8_t core = task.getCore();
-  TEST_ASSERT_EQUAL(1, task.getCore());
+  TEST_ASSERT_EQUAL(1, core);
 
   uint8_t priority = task.getPriority();
   TEST_ASSERT_EQUAL(1, priority);

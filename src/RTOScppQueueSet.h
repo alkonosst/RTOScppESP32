@@ -1,5 +1,5 @@
 /**
- * SPDX-FileCopyrightText: 2025 Maximiliano Ramirez <maximiliano.ramirezbravo@gmail.com>
+ * SPDX-FileCopyrightText: 2026 Maximiliano Ramirez <maximiliano.ramirezbravo@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -23,9 +23,12 @@ class QueueSet {
    * that are going to be added. Each lock will use 1 event. Each queue will use events equal up to
    * the queue length. Each ringbuffer will use the number of messages capable of holding at a
    * certain time, not the length of it.
+   * @param name Name of the queue set. Defaults to nullptr.
    */
-  QueueSet(const UBaseType_t queue_length)
-      : _handle(xQueueCreateSet(queue_length)) {}
+
+  QueueSet(const UBaseType_t queue_length, const char* name = nullptr)
+      : _handle(xQueueCreateSet(queue_length))
+      , _name(name ? name : "RtosQueueSet") {}
 
   ~QueueSet() {
     if (_handle) vQueueDelete(_handle);
@@ -42,6 +45,12 @@ class QueueSet {
    * @return QueueSetHandle_t Queue set handle, nullptr if the queue set is not created.
    */
   QueueSetHandle_t getHandle() const { return _handle; }
+
+  /**
+   * @brief Get the name of the queue set. Useful for debugging and logging purposes.
+   * @return const char* Name of the queue set. Default is "RtosQueueSet" if no name is provided.
+   */
+  const char* getName() const { return _name; }
 
   /**
    * @brief Check if the queue set is created.
@@ -144,6 +153,7 @@ class QueueSet {
 
   private:
   QueueSetHandle_t _handle;
+  const char* _name;
 };
 
 } // namespace RTOS::QueueSets

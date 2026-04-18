@@ -1,5 +1,5 @@
 /**
- * SPDX-FileCopyrightText: 2025 Maximiliano Ramirez <maximiliano.ramirezbravo@gmail.com>
+ * SPDX-FileCopyrightText: 2026 Maximiliano Ramirez <maximiliano.ramirezbravo@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -31,6 +31,12 @@ class ILock {
    * @return SemaphoreHandle_t Lock handle, nullptr if the lock is not created.
    */
   virtual SemaphoreHandle_t getHandle() const = 0;
+
+  /**
+   * @brief Get the name of the lock. Useful for debugging and logging purposes.
+   * @return const char* Name of the lock. Default is "RtosLock" if no name is provided.
+   */
+  virtual const char* getName() const = 0;
 
   /**
    * @brief Check if the lock is created.
@@ -72,10 +78,13 @@ template <typename Derived>
 class Policy {
   protected:
   Policy()
-      : _handle(nullptr) {}
+      : _handle(nullptr)
+      , _name("RtosLock") {}
 
   public:
   SemaphoreHandle_t getHandle() const { return _handle; }
+
+  const char* getName() const { return _name; }
 
   bool isCreated() const { return _handle != nullptr; }
 
@@ -91,6 +100,7 @@ class Policy {
 
   protected:
   SemaphoreHandle_t _handle;
+  const char* _name;
 };
 
 // CRTP mutex base policy class
@@ -110,14 +120,20 @@ class MutexPolicy : public Policy<MutexPolicy<Derived>> {
 template <uint8_t Dummy = 0>
 class MutexDynamicPolicy : public MutexPolicy<MutexDynamicPolicy<>> {
   public:
-  MutexDynamicPolicy() { this->_handle = xSemaphoreCreateMutex(); }
+  MutexDynamicPolicy(const char* name = nullptr) {
+    this->_handle = xSemaphoreCreateMutex();
+    if (name) this->_name = name;
+  }
 };
 
 // Policy for mutex with static memory allocation
 template <uint8_t Dummy = 0>
 class MutexStaticPolicy : public MutexPolicy<MutexStaticPolicy<>> {
   public:
-  MutexStaticPolicy() { this->_handle = xSemaphoreCreateMutexStatic(&_mutex_buffer); }
+  MutexStaticPolicy(const char* name = nullptr) {
+    this->_handle = xSemaphoreCreateMutexStatic(&_mutex_buffer);
+    if (name) this->_name = name;
+  }
 
   private:
   StaticSemaphore_t _mutex_buffer;
@@ -140,15 +156,19 @@ class MutexRecursivePolicy : public Policy<MutexRecursivePolicy<Derived>> {
 template <uint8_t Dummy = 0>
 class MutexRecursiveDynamicPolicy : public MutexRecursivePolicy<MutexRecursiveDynamicPolicy<>> {
   public:
-  MutexRecursiveDynamicPolicy() { this->_handle = xSemaphoreCreateRecursiveMutex(); }
+  MutexRecursiveDynamicPolicy(const char* name = nullptr) {
+    this->_handle = xSemaphoreCreateRecursiveMutex();
+    if (name) this->_name = name;
+  }
 };
 
 // Policy for recursive mutex with static memory allocation
 template <uint8_t Dummy = 0>
 class MutexRecursiveStaticPolicy : public MutexRecursivePolicy<MutexRecursiveStaticPolicy<>> {
   public:
-  MutexRecursiveStaticPolicy() {
+  MutexRecursiveStaticPolicy(const char* name = nullptr) {
     this->_handle = xSemaphoreCreateRecursiveMutexStatic(&_mutex_recursive_buffer);
+    if (name) this->_name = name;
   }
 
   private:
@@ -172,15 +192,19 @@ class SemaphoreBinaryPolicy : public Policy<SemaphoreBinaryPolicy<Derived>> {
 template <uint8_t Dummy = 0>
 class SemaphoreBinaryDynamicPolicy : public SemaphoreBinaryPolicy<SemaphoreBinaryDynamicPolicy<>> {
   public:
-  SemaphoreBinaryDynamicPolicy() { this->_handle = xSemaphoreCreateBinary(); }
+  SemaphoreBinaryDynamicPolicy(const char* name = nullptr) {
+    this->_handle = xSemaphoreCreateBinary();
+    if (name) this->_name = name;
+  }
 };
 
 // Policy for binary semaphore with static memory allocation
 template <uint8_t Dummy = 0>
 class SemaphoreBinaryStaticPolicy : public SemaphoreBinaryPolicy<SemaphoreBinaryStaticPolicy<>> {
   public:
-  SemaphoreBinaryStaticPolicy() {
+  SemaphoreBinaryStaticPolicy(const char* name = nullptr) {
     this->_handle = xSemaphoreCreateBinaryStatic(&_sem_binary_buffer);
+    if (name) this->_name = name;
   }
 
   private:
@@ -216,8 +240,9 @@ class SemaphoreCountingDynamicPolicy
     : public SemaphoreCountingPolicy<SemaphoreCountingDynamicPolicy<MaxCount, InitialCount>> {
 
   public:
-  SemaphoreCountingDynamicPolicy() {
+  SemaphoreCountingDynamicPolicy(const char* name = nullptr) {
     this->_handle = xSemaphoreCreateCounting(MaxCount, InitialCount);
+    if (name) this->_name = name;
   }
 };
 
@@ -227,8 +252,9 @@ class SemaphoreCountingStaticPolicy
     : public SemaphoreCountingPolicy<SemaphoreCountingStaticPolicy<MaxCount, InitialCount>> {
 
   public:
-  SemaphoreCountingStaticPolicy() {
+  SemaphoreCountingStaticPolicy(const char* name = nullptr) {
     this->_handle = xSemaphoreCreateCountingStatic(MaxCount, InitialCount, &_sem_counting_buffer);
+    if (name) this->_name = name;
   }
 
   private:
@@ -250,32 +276,40 @@ class Lock : public ILock, public Policy {
    * caution.
    * @return SemaphoreHandle_t Lock handle, nullptr if the lock is not created.
    */
-  SemaphoreHandle_t getHandle() const { return Policy::getHandle(); }
+  SemaphoreHandle_t getHandle() const override { return Policy::getHandle(); }
+
+  /**
+   * @brief Get the name of the lock. Useful for debugging and logging purposes.
+   * @return const char* Name of the lock. Default is "RtosLock" if no name is provided.
+   */
+  const char* getName() const override { return Policy::getName(); }
 
   /**
    * @brief Check if the lock is created.
    * @return true Lock is created.
    */
-  bool isCreated() const { return Policy::isCreated(); }
+  bool isCreated() const override { return Policy::isCreated(); }
 
   /**
    * @brief Take the lock.
    * @param ticks_to_wait Maximum time to wait for the operation to complete.
    * @return true Lock taken successfully, false if the lock is not created or failed to take.
    */
-  bool take(const TickType_t ticks_to_wait = portMAX_DELAY) { return Policy::take(ticks_to_wait); }
+  bool take(const TickType_t ticks_to_wait = portMAX_DELAY) override {
+    return Policy::take(ticks_to_wait);
+  }
 
   /**
    * @brief Give the lock.
    * @return true Lock given successfully, false if the lock is not created or failed to give.
    */
-  bool give() { return Policy::give(); }
+  bool give() override { return Policy::give(); }
 
   /**
    * @brief Check if the lock is taken.
    * @return true Lock is taken.
    */
-  explicit operator bool() const { return isCreated(); }
+  explicit operator bool() const override { return isCreated(); }
 };
 
 } // namespace Internal

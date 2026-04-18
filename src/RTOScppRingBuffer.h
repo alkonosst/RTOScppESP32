@@ -1,5 +1,5 @@
 /**
- * SPDX-FileCopyrightText: 2025 Maximiliano Ramirez <maximiliano.ramirezbravo@gmail.com>
+ * SPDX-FileCopyrightText: 2026 Maximiliano Ramirez <maximiliano.ramirezbravo@gmail.com>
  *
  * SPDX-License-Identifier: MIT
  */
@@ -30,6 +30,12 @@ class IRingBuffer {
    * @return RingbufHandle_t Ringbuffer handle, nullptr if the Ringbuffer is not created.
    */
   virtual RingbufHandle_t getHandle() const = 0;
+
+  /**
+   * @brief Get the name of the ringbuffer. Useful for debugging and logging purposes.
+   * @return const char* Name of the ringbuffer. Default is "RtosRingBuffer" if no name is provided.
+   */
+  virtual const char* getName() const = 0;
 
   /**
    * @brief Check if the ringbuffer is created.
@@ -70,17 +76,10 @@ namespace Internal {
 template <typename Derived, typename T>
 class Policy {
   public:
-  /**
-   * @brief Get the low-level handle of the ringbuffer. Useful for direct FreeRTOS API calls. Use it
-   * with caution.
-   * @return RingbufHandle_t Ringbuffer handle, nullptr if the Ringbuffer is not created.
-   */
   RingbufHandle_t getHandle() const { return _handle; }
 
-  /**
-   * @brief Check if the ringbuffer is created.
-   * @return true Ringbuffer is created.
-   */
+  const char* getName() const { return _name; }
+
   bool isCreated() const { return _handle != nullptr; }
 
   /**
@@ -136,9 +135,11 @@ class Policy {
 
   protected:
   Policy()
-      : _handle(nullptr) {}
+      : _handle(nullptr)
+      , _name("RtosRingBuffer") {}
 
   RingbufHandle_t _handle;
+  const char* _name;
 };
 
 // CRTP no-split base policy class
@@ -173,7 +174,10 @@ class NoSplitPolicy : public Policy<Derived, T> {
 template <typename T, size_t Length>
 class NoSplitDynamicPolicy : public NoSplitPolicy<NoSplitDynamicPolicy<T, Length>, T> {
   public:
-  NoSplitDynamicPolicy() { this->_handle = xRingbufferCreate(Length, RINGBUF_TYPE_NOSPLIT); }
+  NoSplitDynamicPolicy(const char* name = nullptr) {
+    this->_handle = xRingbufferCreate(Length, RINGBUF_TYPE_NOSPLIT);
+    if (name) this->_name = name;
+  }
 };
 
 // Policy for no-split ring buffer with static memory allocation
@@ -184,9 +188,10 @@ class NoSplitStaticPolicy : public NoSplitPolicy<NoSplitStaticPolicy<T, Length>,
   static constexpr size_t REQUIRED_SIZE = 4 * ((Length + 3) / 4);
 
   public:
-  NoSplitStaticPolicy() {
+  NoSplitStaticPolicy(const char* name = nullptr) {
     this->_handle =
       xRingbufferCreateStatic(REQUIRED_SIZE, RINGBUF_TYPE_NOSPLIT, _storage, &_ringbuf_buffer);
+    if (name) this->_name = name;
   }
 
   private:
@@ -201,6 +206,10 @@ class NoSplitExternalStoragePolicy
   public:
   // Size aligned to nearest 4 bytes
   static constexpr size_t REQUIRED_SIZE = 4 * ((Length + 3) / 4);
+
+  NoSplitExternalStoragePolicy(const char* name = nullptr) {
+    if (name) this->_name = name;
+  }
 
   /**
    * @brief Create the ring buffer with external storage.
@@ -275,8 +284,9 @@ class SplitDynamicPolicy : public SplitPolicy<SplitDynamicPolicy<T, Length>, T> 
   static constexpr size_t REQUIRED_SIZE = 4 * ((Length + 3) / 4);
 
   public:
-  SplitDynamicPolicy() {
+  SplitDynamicPolicy(const char* name = nullptr) {
     this->_handle = xRingbufferCreate(REQUIRED_SIZE, RINGBUF_TYPE_ALLOWSPLIT);
+    if (name) this->_name = name;
   }
 };
 
@@ -288,9 +298,10 @@ class SplitStaticPolicy : public SplitPolicy<SplitStaticPolicy<T, Length>, T> {
   static constexpr size_t REQUIRED_SIZE = 4 * ((Length + 3) / 4);
 
   public:
-  SplitStaticPolicy() {
+  SplitStaticPolicy(const char* name = nullptr) {
     this->_handle =
       xRingbufferCreateStatic(REQUIRED_SIZE, RINGBUF_TYPE_ALLOWSPLIT, _storage, &_ringbuf_buffer);
+    if (name) this->_name = name;
   }
 
   private:
@@ -304,6 +315,10 @@ class SplitExternalStoragePolicy : public SplitPolicy<SplitExternalStoragePolicy
   public:
   // Size aligned to nearest 4 bytes
   static constexpr size_t REQUIRED_SIZE = 4 * ((Length + 3) / 4);
+
+  SplitExternalStoragePolicy(const char* name = nullptr) {
+    if (name) this->_name = name;
+  }
 
   /**
    * @brief Create the ring buffer with external storage.
@@ -363,16 +378,20 @@ class BytePolicy : public Policy<Derived, uint8_t> {
 template <size_t Length>
 class ByteDynamicPolicy : public BytePolicy<ByteDynamicPolicy<Length>> {
   public:
-  ByteDynamicPolicy() { this->_handle = xRingbufferCreate(Length, RINGBUF_TYPE_BYTEBUF); }
+  ByteDynamicPolicy(const char* name = nullptr) {
+    this->_handle = xRingbufferCreate(Length, RINGBUF_TYPE_BYTEBUF);
+    if (name) this->_name = name;
+  }
 };
 
 // Policy for byte ring buffer with static memory allocation
 template <size_t Length>
 class ByteStaticPolicy : public BytePolicy<ByteStaticPolicy<Length>> {
   public:
-  ByteStaticPolicy() {
+  ByteStaticPolicy(const char* name = nullptr) {
     this->_handle =
       xRingbufferCreateStatic(Length, RINGBUF_TYPE_BYTEBUF, _storage, &_ringbuf_buffer);
+    if (name) this->_name = name;
   }
 
   private:
@@ -385,6 +404,10 @@ template <size_t Length>
 class ByteExternalStoragePolicy : public BytePolicy<ByteExternalStoragePolicy<Length>> {
   public:
   static constexpr size_t REQUIRED_SIZE = Length;
+
+  ByteExternalStoragePolicy(const char* name = nullptr) {
+    if (name) this->_name = name;
+  }
 
   /**
    * @brief Create the ring buffer with external storage.
@@ -419,6 +442,12 @@ class RingBuffer : public IRingBuffer, public Policy {
    * @return RingbufHandle_t Ringbuffer handle, nullptr if the Ringbuffer is not created.
    */
   RingbufHandle_t getHandle() const override { return Policy::getHandle(); }
+
+  /**
+   * @brief Get the name of the ringbuffer. Useful for debugging and logging purposes.
+   * @return const char* Name of the ringbuffer. Default is "RtosRingBuffer" if no name is provided.
+   */
+  const char* getName() const override { return Policy::getName(); }
 
   /**
    * @brief Check if the ringbuffer is created.

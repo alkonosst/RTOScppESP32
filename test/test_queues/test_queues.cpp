@@ -3,7 +3,6 @@
 #include "RTOScppQueue.h"
 
 using namespace RTOS::Queues;
-static constexpr const char* tag = "test_queues";
 
 /* ------------------------------------------- Queues ------------------------------------------- */
 static constexpr uint32_t queue_size  = 3;
@@ -12,9 +11,6 @@ static constexpr uint32_t item_to_add = 123456789;
 QueueDynamic<uint32_t, queue_size> q_dyn;
 QueueStatic<uint32_t, queue_size> q_st;
 QueueExternalStorage<uint32_t, queue_size> q_ext;
-
-static uint32_t available_msgs;
-static uint32_t available_spaces;
 
 // Queue of length 1 to test overwrite
 QueueStatic<uint32_t, 1> q_overwrite;
@@ -30,6 +26,11 @@ void test_queues_creation() {
   TEST_ASSERT_TRUE(q_ext.create(ext_buffer));
 
   TEST_ASSERT_TRUE(q_overwrite);
+
+  TEST_ASSERT_EQUAL_STRING("RtosQueue", q_dyn.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosQueue", q_st.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosQueue", q_ext.getName());
+  TEST_ASSERT_EQUAL_STRING("RtosQueue", q_overwrite.getName());
 }
 
 void test_queues_full_empty() {
@@ -201,32 +202,47 @@ void test_queue_overwrite() {
   TEST_ASSERT_EQUAL(0, q_overwrite.getAvailableSpaces());
   TEST_ASSERT_EQUAL(2, item_to_peek);
 }
-/* ---------------------------------------------------------------------------------------------- */
 
-/* ------------------------------------------ USB Logs ------------------------------------------ */
-SemaphoreHandle_t log_mutex = nullptr;
+void test_queue_full_behavior_fail() {
+  static QueueStatic<uint8_t, 2, FullBehavior::Fail> q_fail;
+  TEST_ASSERT_TRUE(q_fail);
 
-int redirectLogs(const char* str, va_list list) {
-  if (log_mutex != nullptr) xSemaphoreTake(log_mutex, portMAX_DELAY);
+  TEST_ASSERT_TRUE(q_fail.add(1));
+  TEST_ASSERT_TRUE(q_fail.add(2));
+  TEST_ASSERT_FALSE(q_fail.add(3));
+  TEST_ASSERT_FALSE(q_fail.push(3));
 
-  static char buffer[2048];
-  int ret = vsnprintf(buffer, sizeof(buffer), str, list);
-  Serial.write(buffer);
+  uint8_t item = 0;
+  TEST_ASSERT_TRUE(q_fail.pop(item));
+  TEST_ASSERT_TRUE(q_fail.add(3));
+  TEST_ASSERT_FALSE(q_fail.add(4));
+  TEST_ASSERT_FALSE(q_fail.push(4));
+}
 
-  if (log_mutex != nullptr) xSemaphoreGive(log_mutex);
+void test_custom_names() {
+  static constexpr const char* name = "CustomQueue";
 
-  return ret;
+  static QueueDynamic<uint32_t, queue_size> q_dyn_named(name);
+  static QueueStatic<uint32_t, queue_size> q_st_named(name);
+
+  static uint8_t* ext_buffer =
+    static_cast<uint8_t*>(malloc(QueueExternalStorage<uint32_t, queue_size>::REQUIRED_SIZE));
+  TEST_ASSERT_NOT_NULL(ext_buffer);
+
+  static QueueExternalStorage<uint32_t, queue_size> q_ext_named(name);
+  TEST_ASSERT_TRUE(q_ext_named.create(ext_buffer));
+
+  TEST_ASSERT_EQUAL_STRING(name, q_dyn_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, q_st_named.getName());
+  TEST_ASSERT_EQUAL_STRING(name, q_ext_named.getName());
 }
 /* ---------------------------------------------------------------------------------------------- */
 
 /* ---------------------------------------------------------------------------------------------- */
 void setup() {
-  log_mutex = xSemaphoreCreateMutex();
-  esp_log_set_vprintf(redirectLogs);
-  esp_log_level_set("*", ESP_LOG_VERBOSE);
-  delay(3000);
+  Serial.begin(115200);
+  delay(1000);
 
-  ESP_LOGI(tag, "Running tests...");
   UNITY_BEGIN();
 
   RUN_TEST(test_queues_creation);
@@ -235,10 +251,11 @@ void setup() {
   RUN_TEST(test_queues_push);
   RUN_TEST(test_queues_peek);
   RUN_TEST(test_queue_overwrite);
+  RUN_TEST(test_queue_full_behavior_fail);
+  RUN_TEST(test_custom_names);
 
-  ESP_LOGI(tag, "Finishing tests...");
   UNITY_END();
 }
 
-void loop() { vTaskDelete(nullptr); }
+void loop() {}
 /* ---------------------------------------------------------------------------------------------- */
