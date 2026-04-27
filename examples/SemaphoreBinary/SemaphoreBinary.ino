@@ -14,6 +14,8 @@
  * signals the event to the consumer task when 's' is received.
  */
 
+#include <Arduino.h>
+
 #include "RTOScppLock.h"
 #include "RTOScppTask.h"
 using namespace RTOS::Locks;

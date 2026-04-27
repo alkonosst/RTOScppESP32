@@ -15,6 +15,8 @@
  *   received.
  */
 
+#include <Arduino.h>
+
 #include "RTOScppQueue.h"
 #include "RTOScppTask.h"
 using namespace RTOS::Queues;

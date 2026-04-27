@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <Arduino.h>
-
 #include <freertos/ringbuf.h>
 
 namespace RTOS::RingBuffers {

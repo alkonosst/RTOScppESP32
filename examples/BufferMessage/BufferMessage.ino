@@ -15,6 +15,8 @@
  * - The loop function reads the serial input and restarts the ESP32 when '.' is received.
  */
 
+#include <Arduino.h>
+
 #include "RTOScppBuffer.h"
 #include "RTOScppTask.h"
 using namespace RTOS::Buffers;

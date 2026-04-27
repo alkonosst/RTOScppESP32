@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <Arduino.h>
-
 #include "RTOScppLock.h"
 #include "RTOScppQueue.h"
 #include "RTOScppRingBuffer.h"

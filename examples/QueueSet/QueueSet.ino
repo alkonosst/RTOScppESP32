@@ -4,14 +4,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "RTOScppQueueSet.h"
-#include "RTOScppTask.h"
-using namespace RTOS::QueueSets;
-using namespace RTOS::Locks;
-using namespace RTOS::Queues;
-using namespace RTOS::RingBuffers;
-using namespace RTOS::Tasks;
-
 /** Explanation of the example:
  * - This example shows how to use a queue set to receive events from a semaphore, a queue, and a
  * ring buffer.
@@ -28,6 +20,16 @@ using namespace RTOS::Tasks;
  * - Try to spam the serial input with 's', 'q', and 'b' to see the LED blink and the messages being
  * received.
  */
+
+#include <Arduino.h>
+
+#include "RTOScppQueueSet.h"
+#include "RTOScppTask.h"
+using namespace RTOS::QueueSets;
+using namespace RTOS::Locks;
+using namespace RTOS::Queues;
+using namespace RTOS::RingBuffers;
+using namespace RTOS::Tasks;
 
 // Binary Semaphore
 SemBinaryStatic sem;

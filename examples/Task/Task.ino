@@ -21,6 +21,8 @@
  * - Task 2 waits for a notification for 5 seconds and increments the 'b' parameter.
  */
 
+#include <Arduino.h>
+
 #include "RTOScppTask.h"
 using namespace RTOS::Tasks;
 

@@ -15,6 +15,8 @@
  * changes the trigger level of the buffer when '1' or '5' is received.
  */
 
+#include <Arduino.h>
+
 #include "RTOScppBuffer.h"
 #include "RTOScppTask.h"
 using namespace RTOS::Buffers;
