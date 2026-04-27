@@ -18,6 +18,8 @@
  * - A message is printed if the print timer expired and restarts it.
  */
 
+#include <Arduino.h>
+
 #include "RTOScppTimer.h"
 using namespace RTOS::Timers;
 

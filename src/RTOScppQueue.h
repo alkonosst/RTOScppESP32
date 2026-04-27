@@ -6,8 +6,7 @@
 
 #pragma once
 
-#include <Arduino.h>
-
+#include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
 namespace RTOS::Queues {

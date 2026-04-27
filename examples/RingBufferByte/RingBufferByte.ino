@@ -4,11 +4,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "RTOScppRingBuffer.h"
-#include "RTOScppTask.h"
-using namespace RTOS::RingBuffers;
-using namespace RTOS::Tasks;
-
 /** Explanation of the example:
  * - This example shows how to use a byte ring buffer to send data between two tasks.
  * - Two tasks are created to illustrate the use of the byte ring buffer. The producer task sends
@@ -20,6 +15,13 @@ using namespace RTOS::Tasks;
  * - The consumer task will receive up to 4 bytes from the buffer and print them. So, you will see
  *   in the serial monitor that the message is received in chunks.
  */
+
+#include <Arduino.h>
+
+#include "RTOScppRingBuffer.h"
+#include "RTOScppTask.h"
+using namespace RTOS::RingBuffers;
+using namespace RTOS::Tasks;
 
 // Byte Ring Buffer with a size of 32 bytes
 // - The max item size is 32 bytes and the buffer is aligned to the next 4 bytes multiple

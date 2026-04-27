@@ -6,8 +6,7 @@
 
 #pragma once
 
-#include <Arduino.h>
-
+#include <freertos/FreeRTOS.h>
 #include <freertos/message_buffer.h>
 #include <freertos/stream_buffer.h>
 

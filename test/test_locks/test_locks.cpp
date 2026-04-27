@@ -1,8 +1,7 @@
+#include <Arduino.h>
 #include <unity.h>
 
 #include "RTOScppLock.h"
-
-#include <memory>
 
 using namespace RTOS::Locks;
 

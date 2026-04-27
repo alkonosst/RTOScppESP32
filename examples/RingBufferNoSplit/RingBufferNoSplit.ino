@@ -4,11 +4,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "RTOScppRingBuffer.h"
-#include "RTOScppTask.h"
-using namespace RTOS::RingBuffers;
-using namespace RTOS::Tasks;
-
 /** Explanation of the example:
  * - This example shows how to use a no-split ring buffer to send data between two tasks.
  * - Two tasks are created to illustrate the use of the no-split ring buffer. The producer task
@@ -19,6 +14,13 @@ using namespace RTOS::Tasks;
  * the buffer information when 'i' is received, and sends a message to the buffer when 'a' is
  * received.
  */
+
+#include <Arduino.h>
+
+#include "RTOScppRingBuffer.h"
+#include "RTOScppTask.h"
+using namespace RTOS::RingBuffers;
+using namespace RTOS::Tasks;
 
 // No-split Ring Buffer with a size of 32 bytes
 // - The max item size is ((bufferSize / 2) - headerSize), headerSize being 8 bytes
