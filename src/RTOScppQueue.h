@@ -312,8 +312,8 @@ class Queue : public IQueue, public Policy {
   /**
    * @brief Push an item to the front of the queue (LIFO order) from an ISR.
    * @param item Item to push.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Item pushed successfully, false if the queue is not created or the queue is full.
    */
   bool pushFromISR(const T& item, BaseType_t& task_woken) const {
@@ -345,8 +345,8 @@ class Queue : public IQueue, public Policy {
   /**
    * @brief Add an item to the back of the queue (FIFO order) from an ISR.
    * @param item Item to add.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Item added successfully, false if the queue is not created or the queue is full.
    */
   bool addFromISR(const T& item, BaseType_t& task_woken) const {
@@ -373,8 +373,8 @@ class Queue : public IQueue, public Policy {
   /**
    * @brief Pop (remove) an item from the queue from an ISR.
    * @param var Variable to store the item.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Item popped successfully, false if the queue is not created or the queue is empty.
    */
   bool popFromISR(T& var, BaseType_t& task_woken) const {
@@ -417,8 +417,8 @@ class Queue : public IQueue, public Policy {
   /**
    * @brief Overwrite an item in the queue from an ISR. Use it only with queues of length 1.
    * @param item Item to overwrite.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Item overwritten successfully, false if the queue is not created.
    */
   bool overwriteFromISR(const T& item, BaseType_t& task_woken) const {

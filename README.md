@@ -5,7 +5,7 @@
 </h1>
 
 <p align="center">
-  <b>Make your real-time application development a breeze!</b>
+  <b>C++ abstraction layer for FreeRTOS on ESP32.</b>
 </p>
 
 <p align="center">
@@ -16,362 +16,548 @@
     <img src="https://badges.registry.platformio.org/packages/alkonosst/library/RTOScppESP32.svg" alt="PlatformIO Registry">
   </a>
   <br><br>
+  <a href="https://opensource.org/licenses/MIT">
+    <img src="https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge&color=blue" alt="License">
+  </a>
+  <br><br>
   <a href="https://ko-fi.com/alkonosst">
     <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Ko-fi">
-    </a>
+  </a>
 </p>
 
 ---
 
-# Table of Contents <!-- omit in toc -->
+# Table of contents <!-- omit in toc -->
 
 - [Description](#description)
-- [Motivation](#motivation)
-- [Documentation](#documentation)
+- [Key Features](#key-features)
+- [Quick Example](#quick-example)
+- [Installation](#installation)
+  - [PlatformIO](#platformio)
+  - [Arduino IDE](#arduino-ide)
 - [Usage](#usage)
-  - [Adding library to Arduino IDE](#adding-library-to-arduino-ide)
-  - [Adding library to platformio.ini (PlatformIO)](#adding-library-to-platformioini-platformio)
-  - [Using the library](#using-the-library)
-    - [Including the library](#including-the-library)
-    - [Namespaces](#namespaces)
-    - [Dynamic, static and external memory objects](#dynamic-static-and-external-memory-objects)
-  - [RTOS objects](#rtos-objects)
-    - [Using tasks](#using-tasks)
-    - [Using timers](#using-timers)
-    - [Using locks](#using-locks)
-    - [Using queues](#using-queues)
-    - [Using FreeRTOS buffers](#using-freertos-buffers)
-    - [Using ESP-IDF Ring Buffers](#using-esp-idf-ring-buffers)
-    - [Using queue sets](#using-queue-sets)
+  - [Including the library](#including-the-library)
+  - [Namespaces](#namespaces)
+  - [Memory allocation strategies](#memory-allocation-strategies)
+  - [Tasks](#tasks)
+  - [Timers](#timers)
+  - [Locks](#locks)
+    - [Mutexes](#mutexes)
+    - [Binary semaphores](#binary-semaphores)
+    - [Counting semaphores](#counting-semaphores)
+    - [ISR methods](#isr-methods)
+    - [Interfaces](#interfaces)
+  - [Queues](#queues)
+    - [Queue behavior on full](#queue-behavior-on-full)
+  - [Buffers](#buffers)
+    - [Stream buffers](#stream-buffers)
+    - [Message buffers](#message-buffers)
+  - [Ring buffers](#ring-buffers)
+    - [No-split](#no-split)
+    - [Split](#split)
+    - [Byte](#byte)
+  - [Queue sets](#queue-sets)
+- [Release Status](#release-status)
 - [License](#license)
+
+---
 
 # Description
 
-**RTOScppESP32** is your go-to C++ library for the ESP32 platform, designed to make real-time application development fun and easy. With a user-friendly API, it brings the power of FreeRTOS to your fingertips, allowing you to effortlessly manage tasks, timers, queues, buffers, and locks. Key features include:
+**RTOScppESP32** is a C++ abstraction library for the ESP32 that wraps FreeRTOS and ESP-IDF RTOS primitives behind a clean, object-oriented API. Instead of dealing with raw handles, manual resource management, and scattered function calls, every primitive - tasks, timers, queues, buffers, locks, and ring buffers - is encapsulated in a typed C++ class with consistent naming and IDE-friendly code completion.
 
-- Task Management: Simplify task creation and management with intuitive functions.
-- Timers: Use dynamic and static timers for precise timing operations.
-- Queues: Enhance inter-task communication with versatile queue options.
-- Buffers: Efficiently handle data with various buffer types.
-- Locks: Ensure thread safety with robust locking mechanisms.
+The library is ESP32-only and is designed for both the **Arduino** and **PlatformIO** ecosystems. All source is documented via Doxygen comments in the header files. For FreeRTOS concepts, refer to the [FreeRTOS documentation](https://www.freertos.org/Documentation/01-FreeRTOS-quick-start/01-Beginners-guide/01-RTOS-fundamentals) and the [ESP-IDF FreeRTOS reference](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/freertos.html). Ring buffers are an ESP-IDF extension - see the [Ring Buffer API reference](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/freertos_additions.html#ring-buffers).
 
-# Motivation
+# Key Features
 
-I've been working with the ESP32 for a while now, and I've always found the FreeRTOS API to be a bit
-_cumbersome_. Maybe it's the fact that I prefer C++ over C. I like the idea that I can create classes
-and objects to encapsulate functionality and make my code more readable and maintainable, and take
-advantage of the IDE features like code completion to see what methods and properties are available.
-I don't like the idea of having to remember function names for all the FreeRTOS API calls, or having
-to look them up in the documentation every time I need to use them.
+- **Full RTOS coverage** - Tasks, software timers, mutexes, semaphores, queues, stream/message buffers, ring buffers, and queue sets.
+- **Three memory strategies** - Every object comes in `Dynamic` (heap), `Static` (preallocated), and where applicable `ExternalStorage` (user-supplied buffer, e.g. PSRAM) variants.
+- **ISR-safe API** - Semaphores, queues, ring buffers, timers, tasks, and buffers all expose dedicated `*FromISR()` methods with a consistent `BaseType_t& task_woken` signature.
+- **Polymorphic interfaces** - Each primitive family exposes an `IXxx` interface (`ITask`, `ITimer`, `ILock`, `ISemaphore`, `IQueue`, `IBuffer`) so objects can be used through pointers without knowing the concrete type.
+- **Consistent naming** - All types follow the `<Type><Dynamic|Static|ExternalStorage>` pattern with uniform method names across all primitives.
+- **IDE-friendly** - Full Doxygen documentation on every public method; all public types live in dedicated sub-namespaces under `RTOS`.
 
-I wanted to create a library that would simplify the process of working with
-FreeRTOS, making it more intuitive and user-friendly. That's how **RTOScppESP32** was born. I hope
-this library will help you streamline your real-time application development and make your projects
-more enjoyable.
+# Quick Example
 
-# Documentation
+Two tasks share an LED, protected by a mutex to avoid concurrent access:
 
-If you are new to FreeRTOS, I recommend you to read the [official
-documentation](https://www.freertos.org/Documentation/01-FreeRTOS-quick-start/01-Beginners-guide/01-RTOS-fundamentals).
-Also you can check the [API
-Reference](https://www.freertos.org/Documentation/02-Kernel/04-API-references/01-Task-creation/00-TaskHandle)
-for more information about the FreeRTOS API.
+```cpp
+#include <Arduino.h>
 
-And if you want to know how the FreeRTOS is implemented in the ESP32, you can check the [ESP-IDF
-documentation](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/freertos.html).
-It is worth reading the [Ring Buffers API
-Reference](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/freertos_additions.html#ring-buffers),
-because that's an additional feature that is not present in the FreeRTOS API and is implemented in
-this library.
+#include "RTOScppLock.h"
+#include "RTOScppTask.h"
+using namespace RTOS::Locks;
+using namespace RTOS::Tasks;
 
-Besides that, all the classes and methods are documented in the source code, so you can check the
-comments in the header files to see what each method does and how to use it. Also you can check the
-examples in the `examples` folder to see how to use the library in practice.
+MutexStatic mutex;
 
-# Usage
+void task1Fn(void* params);
+void task2Fn(void* params);
+TaskStatic</*stack bytes*/ 4 * 1024> task1(/*name*/ "Task1", /*function*/ task1Fn, /*priority*/ 1);
+TaskStatic</*stack bytes*/ 4 * 1024> task2(/*name*/ "Task2", /*function*/ task2Fn, /*priority*/ 1);
 
-## Adding library to Arduino IDE
+void blinkLED(const uint8_t times, const uint32_t delay_ms) {
+  if (!mutex.take()) return;
 
-Search for the library in the Library Manager.
+  for (uint8_t i = 0; i < times; i++) {
+    digitalWrite(LED_BUILTIN, HIGH);
+    vTaskDelay(pdMS_TO_TICKS(delay_ms));
+    digitalWrite(LED_BUILTIN, LOW);
+    vTaskDelay(pdMS_TO_TICKS(delay_ms));
+  }
 
-## Adding library to platformio.ini (PlatformIO)
+  mutex.give();
+}
+
+void task1Fn(void*) {
+  while (true) {
+    blinkLED(3, 100);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
+}
+
+void task2Fn(void*) {
+  while (true) {
+    blinkLED(7, 50);
+    vTaskDelay(pdMS_TO_TICKS(1500));
+  }
+}
+
+void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+  task1.create();
+  task2.create();
+}
+
+void loop() {}
+```
+
+# Installation
+
+## PlatformIO
+
+Add to your `platformio.ini`:
 
 ```ini
+[env:your_env]
 ; Most recent changes
 lib_deps =
   https://github.com/alkonosst/RTOScppESP32.git
 
-; Release vx.y.z (using an exact version is recommended)
+; Pinned release (recommended for production)
 lib_deps =
-  https://github.com/alkonosst/RTOScppESP32.git#v1.1.0
+  https://github.com/alkonosst/RTOScppESP32.git#vx.y.z
 ```
 
-## Using the library
+## Arduino IDE
 
-### Including the library
+1. Open Arduino IDE.
+2. Go to **Sketch > Manage Libraries...**
+3. Search for **"RTOScppESP32"**.
+4. Click **Install**.
 
-To use a feature, you need to include the corresponding header file. For example, to use **Tasks**
-you need to include the `RTOScppESP32.h` file:
+# Usage
+
+## Including the library
+
+Each primitive has its own header. Include only what you need:
+
+| Header                | Primitives                             |
+| --------------------- | -------------------------------------- |
+| `RTOScppTask.h`       | `TaskDynamic`, `TaskStatic`            |
+| `RTOScppTimer.h`      | `TimerDynamic`, `TimerStatic`          |
+| `RTOScppLock.h`       | Mutexes and semaphores                 |
+| `RTOScppQueue.h`      | `QueueDynamic`, `QueueStatic`, ...     |
+| `RTOScppBuffer.h`     | Stream and message buffers             |
+| `RTOScppRingBuffer.h` | No-split, split, and byte ring buffers |
+| `RTOScppQueueSet.h`   | `QueueSet`                             |
+
+## Namespaces
+
+All types live in the `RTOS` namespace, with a sub-namespace per primitive family:
+
+| Sub-namespace       | Contents                                         |
+| ------------------- | ------------------------------------------------ |
+| `RTOS::Tasks`       | Task types and `ITask`                           |
+| `RTOS::Timers`      | Timer types and `ITimer`                         |
+| `RTOS::Locks`       | Mutex and semaphore types, `ILock`, `ISemaphore` |
+| `RTOS::Queues`      | Queue types and `IQueue`                         |
+| `RTOS::Buffers`     | Buffer types and `IBuffer`                       |
+| `RTOS::RingBuffers` | Ring buffer types                                |
+| `RTOS::QueueSets`   | `QueueSet`                                       |
+
+Use `using namespace` to avoid repeating the full path:
 
 ```cpp
 #include "RTOScppTask.h"
+using namespace RTOS::Tasks;
+
+TaskStatic<4 * 1024> task;
 ```
 
-### Namespaces
-
-All the features are inside the `RTOS` namespace. Inside this namespace, you will find another one
-for each feature. For example, the `RTOS::Tasks` includes all the classes related to tasks. So, if you
-want to use the `TaskStatic` class, you need to use the full name:
+Or alias the namespace for a shorter prefix:
 
 ```cpp
-#include "RTOScppTask.h"
-RTOS::Tasks::TaskStatic<4096> task;
-```
-
-If you prefer, you can rename the namespace to something shorter:
-
-```cpp
-#include "RTOScppTask.h"
 namespace RT = RTOS::Tasks;
-RT::TaskStatic<4096> task;
+RT::TaskStatic<4 * 1024> task;
 ```
 
-Or you can use the `using` directive to avoid using the full name:
+## Memory allocation strategies
 
-```cpp
-#include "RTOScppTask.h"
-using namespace RTOS::Tasks;
-TaskStatic<4096> task;
-```
+Every primitive is available in up to three variants:
 
-### Dynamic, static and external memory objects
+| Variant           | Memory                  | RAM footprint at compile time | Notes                                      |
+| ----------------- | ----------------------- | ----------------------------- | ------------------------------------------ |
+| `Dynamic`         | FreeRTOS heap           | Not counted                   | Flexible, but adds heap fragmentation risk |
+| `Static`          | Statically preallocated | Counted                       | Recommended for most cases                 |
+| `ExternalStorage` | User-supplied buffer    | Not counted (user owns it)    | Ideal for PSRAM or custom memory pools     |
 
-The library provides three types of objects: **Dynamic**, **Static** and some of them have **External**:
+`ExternalStorage` objects require the user to allocate a buffer of at least `REQUIRED_SIZE` bytes and pass it to `create()`.
 
-- **Dynamic**: The object will be created dynamically in the heap memory. When you compile your
-  program, the size of the object will not be included in the total RAM usage of the program.
-- **Static**: The object will be created statically in the stack memory. When you compile your
-  program, the size of the object will be included in the total RAM usage of the program.
-- **External**: The object will be created externally by the user. The user is responsible for
-  allocating memory for the object and passing the pointer to the corresponding method for creating
-  it. Useful when you want to create the object in a specific memory region (_like the ESP32
-  external PSRAM_).
+> [!NOTE]
+> Prefer `Static` objects whenever possible. Static allocation avoids heap fragmentation and makes the total RAM usage visible at compile time - a good practice on resource-constrained microcontrollers.
 
-I recommend you to use the **Static** objects whenever possible, because they are more efficient in
-terms of memory usage and performance. It is a good practice to avoid dynamic memory allocation in a
-microcontroller with limited resources.
+All objects accept an optional `name` parameter for FreeRTOS tracing and debugging. A default name is used when no name is provided.
 
-## RTOS objects
-
-For now, only the constructors are explained here. You can check the methods using the code
-completion feature of your IDE or checking the source code of each object type.
-
-All objects have a name parameter that is used for debugging purposes (**with a default name if you
-don't provide one**). It is a good practice to give a meaningful name to each object to make it easier to identify them in the debugging process.
-
-### Using tasks
+## Tasks
 
 ```cpp
 #include "RTOScppTask.h"
 using namespace RTOS::Tasks;
 
-// Dynamic version example
-// - The stack size is 4096 bytes
-// - Empty constructor, so you need to call the `create(parameters)` method to create the task
-void task1Function(void* params);
-TaskDynamic</*stack size*/ 4096> task_1;
+void taskFn(void* params);
 
-// Static version example
-// - The stack size is 4096 bytes
-// - All parameters are passed to the constructor
-// - You can choose to create the task in the constructor or later with the `create()` method
-void task2Function(void* params);
-TaskStatic</*stack size*/ 4096> task_1("Task2Name", task2Function, /*priority*/ 1, /*parameters*/ nullptr, /*core*/ 1, /*create*/ false);
+// Dynamic: task created later via create(name, fn, priority, params, core)
+TaskDynamic<4 * 1024> task1;
+
+// Static: parameters supplied at construction; create() is called separately
+TaskStatic<8 * 1024> task2("Task2", taskFn, /*priority*/ 1, /*params*/ nullptr, /*core*/ 1);
 
 void setup() {
-  // Setup and create the dynamic task
-  task_1.create("Task1Name", task1Function, /*priority*/ 1, /*parameters*/ nullptr, /*core*/ 1);
-
-  // Setup and create the static task
-  task_2.create();
+  task1.create("Task1", taskFn, 1);
+  task2.create();
 }
 ```
 
-### Using timers
+Key methods: `create()`, `suspend()`, `resume()`, `getState()`, `setPriority()`, `getPriority()`, `getPriorityFromISR()`, `notify()`, `notifyFromISR()`, `notifyGive()`, `notifyGiveFromISR()`, `notifyTake()`, `notifyWait()`, `updateStackStats()`.
+
+## Timers
 
 ```cpp
 #include "RTOScppTimer.h"
 using namespace RTOS::Timers;
 
-// Dynamic version example
-// - Empty constructor, so you need to call the `create(parameters)` method to create the timer
-void timer1Callback(TimerHandle_t timer);
-TimerDynamic timer_1;
+void timerFn(TimerHandle_t timer);
 
-// Static version example
-// - All parameters are passed to the constructor
-// - You can choose to start the timer in the constructor or later with the `start()` method
-void timer2Callback(TimerHandle_t timer);
-TimerStatic timer_2(
-  /*name*/ "Timer2Name",
-  /*callback*/ timer2Callback,
-  /*period*/ 1000,
+// Dynamic: timer created later via create(...)
+TimerDynamic timer1;
+
+// Static: all parameters at construction; optionally start immediately
+TimerStatic timer2(
+  /*name*/ "Timer2",
+  /*callback*/ timerFn,
+  /*period*/ pdMS_TO_TICKS(1000),
   /*id*/ nullptr,
-  /*autoreload*/ true,
-  /*start*/ true);
+  /*auto-reload*/ true,
+  /*start*/ false);
 
 void setup() {
-  // Create and start the dynamic timer
-  timer_1.create(
-    /*name*/ "Timer1Name",
-    /*callback*/ timer1Callback,
-    /*period*/ 1000,
-    /*id*/ nullptr,
-    /*autoreload*/ true,
-    /*start*/ true);
+  timer1.create("Timer1", timerFn, pdMS_TO_TICKS(500), nullptr, true, true);
+  timer2.start();
 }
 ```
 
-### Using locks
+Key methods: `create()`, `start()`, `stop()`, `reset()`, `isActive()`, `setPeriod()`, `getPeriod()`, `getExpiryTime()`, `getID()`, `setID()`. All have ISR counterparts: `startFromISR()`, `stopFromISR()`, `resetFromISR()`, `setPeriodFromISR()`.
+
+## Locks
+
+### Mutexes
+
+Standard and recursive mutexes. They implement `ILock`.
 
 ```cpp
 #include "RTOScppLock.h"
 using namespace RTOS::Locks;
 
-// Mutexes
-MutexDynamic mutex_1; // Dynamic version
-MutexStatic mutex_2; // Static version
+MutexDynamic mutex1;           // standard, dynamic
+MutexStatic mutex2("MyMutex"); // standard, static, named
 
-// Recursive mutexes
-MutexRecursiveDynamic mutex_recursive_1; // Dynamic version
-MutexRecursiveStatic mutex_recursive_2; // Static version
-
-// Binary semaphores
-SemBinaryDynamic sem_binary_1; // Dynamic version
-SemBinaryStatic sem_binary_2; // Static version
-
-// Counting semaphores
-SemCountingDynamic</*max count*/ 5, /*initial count*/ 0> sem_counting_1; // Dynamic version
-SemCountingStatic</*max count*/ 5, /*initial count*/ 0> sem_counting_2; // Static version
+MutexRecursiveDynamic rec_mutex1; // recursive, dynamic
+MutexRecursiveStatic rec_mutex2;  // recursive, static
 ```
 
-### Using queues
+```cpp
+if (mutex2.take()) {
+  // critical section
+  mutex2.give();
+}
+```
+
+> [!IMPORTANT]
+> FreeRTOS does not allow mutexes to be taken or given from an ISR. Use binary or counting semaphores for ISR synchronization instead.
+
+### Binary semaphores
+
+Binary semaphores implement `ISemaphore`, which extends `ILock` with ISR methods.
+
+```cpp
+SemBinaryDynamic sem1;
+SemBinaryStatic sem2("MySem");
+```
+
+### Counting semaphores
+
+Template parameters set the maximum count and optional initial count.
+
+```cpp
+SemCountingDynamic</*max*/ 5> sem3; // initial count defaults to 0
+SemCountingStatic</*max*/ 5, /*init*/ 3> sem4("CountSem");
+```
+
+Additional method: `getCount()` returns the current semaphore count.
+
+### ISR methods
+
+Binary and counting semaphores expose `takeFromISR()` and `giveFromISR()`:
+
+```cpp
+void IRAM_ATTR myISR() {
+  BaseType_t task_woken = pdFALSE;
+  sem2.giveFromISR(task_woken);
+  portYIELD_FROM_ISR(task_woken);
+}
+```
+
+### Interfaces
+
+Use `ILock*` for polymorphic access to any lock type, or `ISemaphore*` when ISR methods are needed:
+
+```cpp
+ILock* lock = &mutex2;
+lock->take();
+lock->give();
+
+ISemaphore* sem = &sem2;
+BaseType_t woken = pdFALSE;
+sem->giveFromISR(woken);
+```
+
+## Queues
 
 ```cpp
 #include "RTOScppQueue.h"
 using namespace RTOS::Queues;
 
-// Dynamic version
-QueueDynamic</*type*/ uint32_t, /*length*/ 10> queue_1;
-
-// Static version
-QueueStatic</*type*/ uint32_t, /*length*/ 10> queue_2;
-
-// External version
-QueueExternal</*type*/ uint32_t, /*length*/ 10> queue_3;
+QueueDynamic<uint32_t, 10> queue1;
+QueueStatic<uint32_t, 10> queue2("MyQueue");
+QueueExternalStorage<uint32_t, 10> queue3;
 
 void setup() {
-  // Create the external queue
-  static uint8_t* ext_buffer = static_cast<uint8_t*>(malloc(queue_3.REQUIRED_SIZE));
-  queue_3.create(ext_buffer);
+  static uint8_t buf[queue3.REQUIRED_SIZE];
+  queue3.create(buf);
+}
+
+void loop() {
+  uint32_t value = 42;
+  queue2.add(value);        // add to back (FIFO)
+  queue2.push(value);       // add to front (LIFO)
+
+  uint32_t received;
+  queue2.pop(received);     // remove from front
+  queue2.peek(received);    // read front without removing
 }
 ```
 
-### Using FreeRTOS buffers
+Key methods: `add()`, `addFromISR()`, `push()`, `pushFromISR()`, `pop()`, `popFromISR()`, `peek()`, `peekFromISR()`, `overwrite()`, `overwriteFromISR()`, `isFull()`, `isEmpty()`, `isFullFromISR()`, `isEmptyFromISR()`, `getAvailableMessages()`, `getAvailableMessagesFromISR()`, `getAvailableSpaces()`, `reset()`.
+
+### Queue behavior on full
+
+The third template parameter controls what happens when the queue is full during a non-ISR `add()` or `push()`. The default is `FullBehavior::Block` (block for `ticks_to_wait`). Use `FullBehavior::Fail` to return `false` immediately instead:
+
+```cpp
+#include "RTOScppQueue.h"
+using namespace RTOS::Queues;
+
+QueueStatic<uint32_t, 10, FullBehavior::Fail> queue_no_block;
+```
+
+## Buffers
+
+### Stream buffers
+
+Byte streams with a configurable trigger level: the receiver unblocks only when at least `TriggerBytes` bytes are available.
 
 ```cpp
 #include "RTOScppBuffer.h"
 using namespace RTOS::Buffers;
 
-// Stream buffers
-StreamBufferDynamic</*trigger bytes*/ 5, /*length*/ 10> stream_buffer_1; // Dynamic version
-StreamBufferStatic</*trigger bytes*/ 5, /*length*/ 10> stream_buffer_2; // Static version
-StreamBufferExternalStorage</*trigger bytes*/ 5, /*length*/ 10> stream_buffer_3; // External version
-
-// Message buffers
-MessageBufferDynamic</*length*/ 10> message_buffer_1; // Dynamic version
-MessageBufferStatic</*length*/ 10> message_buffer_2; // Static version
-MessageBufferExternalStorage</*length*/ 10> message_buffer_3; // External version
+StreamBufferDynamic</*trigger*/ 5, /*length*/ 64> sb1;
+StreamBufferStatic</*trigger*/ 5, /*length*/ 64> sb2("StreamBuf");
+StreamBufferExternalStorage</*trigger*/ 5, /*length*/ 64> sb3;
 
 void setup() {
-  // Create the external stream buffer
-  static uint8_t* sb_ext_buffer = static_cast<uint8_t*>(malloc(stream_buffer_3.REQUIRED_SIZE));
-  stream_buffer_3.create(sb_ext_buffer);
+  static uint8_t buf[sb3.REQUIRED_SIZE];
+  sb3.create(buf);
+}
 
-  // Create the external message buffer
-  static uint8_t* mb_ext_buffer = static_cast<uint8_t*>(malloc(message_buffer_3.REQUIRED_SIZE));
-  message_buffer_3.create(mb_ext_buffer);
+void loop() {
+  const char* msg = "hello";
+  sb2.send(msg, strlen(msg));
+
+  char rx[64];
+  uint32_t received = sb2.receive(rx, sizeof(rx));
 }
 ```
 
-### Using ESP-IDF Ring Buffers
+### Message buffers
+
+Message buffers are stream buffers with implicit length framing - each `send()` stores the byte count alongside the payload so `receive()` always returns exactly one message.
+
+```cpp
+MessageBufferDynamic</*length*/ 128> mb1;
+MessageBufferStatic</*length*/ 128> mb2("MsgBuf");
+MessageBufferExternalStorage</*length*/ 128> mb3;
+
+void setup() {
+  static uint8_t buf[mb3.REQUIRED_SIZE];
+  mb3.create(buf);
+}
+```
+
+Key methods (both types): `send()`, `sendFromISR()`, `receive()`, `receiveFromISR()`, `reset()`, `isEmpty()`, `isFull()`, `getAvailableBytes()`, `getMaxAvailableBytes()`.
+
+## Ring buffers
+
+ESP-IDF ring buffers, exposed through the `RTOS::RingBuffers` namespace. Three buffer types are available.
+
+### No-split
+
+Items are always stored contiguously. A receive returns a single pointer to the item.
 
 ```cpp
 #include "RTOScppRingBuffer.h"
 using namespace RTOS::RingBuffers;
 
-// No-split ring buffers
-RingBufferNoSplitDynamic</*type*/ char, /*length*/ 10> ring_buffer_no_split_1; // Dynamic version
-RingBufferNoSplitStatic</*type*/ char, /*length*/ 10> ring_buffer_no_split_2; // Static version
-RingBufferNoSplitExternalStorage</*type*/ char, /*length*/ 10> ring_buffer_no_split_3; // External version
-
-// Split ring buffers
-RingBufferSplitDynamic</*type*/ char, /*length*/ 10> ring_buffer_split_1; // Dynamic version
-RingBufferSplitStatic</*type*/ char, /*length*/ 10> ring_buffer_split_2; // Static version
-RingBufferSplitExternalStorage</*type*/ char, /*length*/ 10> ring_buffer_split_3; // External version
-
-// Byte ring buffers
-RingBufferByteDynamic</*length*/ 10> ring_buffer_byte_1; // Dynamic version
-RingBufferByteStatic</*length*/ 10> ring_buffer_byte_2; // Static version
-RingBufferByteExternalStorage</*length*/ 10> ring_buffer_byte_3; // External version
+RingBufferNoSplitDynamic<char, 128> rb1;
+RingBufferNoSplitStatic<char, 128> rb2("RingBuf");
+RingBufferNoSplitExternalStorage<char, 128> rb3;
 
 void setup() {
-  // Create the external no-split ring buffer
-  static uint8_t* rbs_ext_buffer = static_cast<uint8_t*>(malloc(ring_buffer_no_split_3.REQUIRED_SIZE));
-  ring_buffer_no_split_3.create(rbs_ext_buffer);
+  static uint8_t buf[rb3.REQUIRED_SIZE];
+  rb3.create(buf);
+}
 
-  // Create the external split ring buffer
-  static uint8_t* rbs_ext_buffer = static_cast<uint8_t*>(malloc(ring_buffer_split_3.REQUIRED_SIZE));
-  ring_buffer_split_3.create(rbs_ext_buffer);
+void loop() {
+  const char* msg = "hello";
+  rb2.send(msg, strlen(msg));
 
-  // Create the external byte ring buffer
-  static uint8_t* rbs_ext_buffer = static_cast<uint8_t*>(malloc(ring_buffer_byte_3.REQUIRED_SIZE));
-  ring_buffer_byte_3.create(rbs_ext_buffer);
+  size_t size;
+  char* item = rb2.receive(size);
+  if (item) {
+    // use item...
+    rb2.returnItem(item);
+  }
 }
 ```
 
-### Using queue sets
+### Split
+
+Items may wrap around the end of the buffer and be split into two contiguous fragments. A receive returns head and tail pointers.
+
+```cpp
+RingBufferSplitDynamic<char, 128> split1;
+RingBufferSplitStatic<char, 128> split2("SplitBuf");
+RingBufferSplitExternalStorage<char, 128> split3;
+
+void setup() {
+  static uint8_t buf[split3.REQUIRED_SIZE];
+  split3.create(buf);
+}
+
+void loop() {
+  char* head;
+  char* tail;
+  size_t head_size, tail_size;
+
+  if (split2.receive(head, tail, head_size, tail_size)) {
+    // process head (head_size bytes) and tail (tail_size bytes)
+    split2.returnItem(head);
+    if (tail) split2.returnItem(tail);
+  }
+}
+```
+
+### Byte
+
+Unframed byte stream. `receiveUpTo()` reads up to a given number of bytes in a single call.
+
+```cpp
+RingBufferByteDynamic<128> byte1;
+RingBufferByteStatic<128> byte2("ByteBuf");
+RingBufferByteExternalStorage<128> byte3;
+
+void setup() {
+  static uint8_t buf[byte3.REQUIRED_SIZE];
+  byte3.create(buf);
+}
+
+void loop() {
+  const uint8_t data[] = {0x01, 0x02, 0x03};
+  byte2.send(data, sizeof(data));
+
+  size_t received_size;
+  uint8_t* item = byte2.receiveUpTo(/*max_bytes*/ 64, received_size);
+  if (item) {
+    // use item...
+    byte2.returnItem(item);
+  }
+}
+```
+
+All ring buffer types share: `send()`, `sendFromISR()`, `returnItem()`, `returnItemFromISR()`, `isCreated()`, `getHandle()`, `getName()`.
+
+## Queue sets
+
+A queue set blocks on multiple queues and semaphores simultaneously, returning whichever member becomes ready first.
 
 ```cpp
 #include "RTOScppQueueSet.h"
+#include "RTOScppLock.h"
+#include "RTOScppQueue.h"
 using namespace RTOS::QueueSets;
+using namespace RTOS::Locks;
+using namespace RTOS::Queues;
 
-// Binary Semaphore
 SemBinaryStatic sem;
-
-// Queue, type uint32_t, size 10
 QueueStatic<uint32_t, 10> queue;
 
-// Queue set, holding 1 event from the semaphore + 10 events from the queue
+// Total event capacity = 1 (semaphore) + 10 (queue)
 QueueSet queue_set(1 + 10);
 
 void setup() {
-  // Add the semaphore and queue to the queue set
   queue_set.add(sem);
   queue_set.add(queue);
 }
 
 void loop() {
-  // Block indefinitely until an event occurs in the queue set
-  QueueSetHandle_t member = queue_set.select();
+  QueueSetMemberHandle_t member = queue_set.select(); // blocks indefinitely
 
   if (member == sem) {
-    // Semaphore event
+    sem.take(0);
+    // handle semaphore event
   } else if (member == queue) {
-    // Queue event
+    uint32_t value;
+    queue.pop(value, 0);
+    // handle queue event
   }
 }
 ```
+
+Key methods: `add()`, `remove()`, `select()`, `selectFromISR()`.
+
+# Release Status
+
+This project is actively maintained. Report bugs or suggestions on the [GitHub Issues](https://github.com/alkonosst/RTOScppESP32/issues) page.
 
 # License
 

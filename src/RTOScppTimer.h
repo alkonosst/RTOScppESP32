@@ -64,8 +64,8 @@ class ITimer {
 
   /**
    * @brief Start the timer from an ISR.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Timer started successfully, false if the timer is not created or failed to start.
    */
   virtual bool startFromISR(BaseType_t& task_woken) const = 0;
@@ -79,8 +79,8 @@ class ITimer {
 
   /**
    * @brief Stop the timer from an ISR.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Timer stopped successfully, false if the timer is not created or failed to stop.
    */
   virtual bool stopFromISR(BaseType_t& task_woken) const = 0;
@@ -100,8 +100,8 @@ class ITimer {
 
   /**
    * @brief Reset the timer from an ISR.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Timer reset successfully, false if the timer is not created or failed to reset.
    */
   virtual bool resetFromISR(BaseType_t& task_woken) const = 0;
@@ -125,8 +125,8 @@ class ITimer {
   /**
    * @brief Set the timer period from an ISR.
    * @param period Timer period in ticks (can't be 0)
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Timer period set successfully, false if the timer is not created or failed to set
    * the period.
    */
@@ -314,8 +314,8 @@ class Timer : public ITimer {
 
   /**
    * @brief Start the timer from an ISR.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Timer started successfully, false if the timer is not created or failed to start.
    */
   bool startFromISR(BaseType_t& task_woken) const override {
@@ -335,8 +335,8 @@ class Timer : public ITimer {
 
   /**
    * @brief Stop the timer from an ISR.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Timer stopped successfully, false if the timer is not created or failed to stop.
    */
   bool stopFromISR(BaseType_t& task_woken) const override {
@@ -365,8 +365,8 @@ class Timer : public ITimer {
 
   /**
    * @brief Reset the timer from an ISR.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Timer reset successfully, false if the timer is not created or failed to reset.
    */
   bool resetFromISR(BaseType_t& task_woken) const override {
@@ -399,8 +399,8 @@ class Timer : public ITimer {
   /**
    * @brief Set the timer period from an ISR.
    * @param period Timer period in ticks (can't be 0)
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Timer period set successfully, false if the timer is not created or failed to set
    * the period.
    */

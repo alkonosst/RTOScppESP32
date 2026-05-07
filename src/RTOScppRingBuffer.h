@@ -98,8 +98,8 @@ class Policy {
    * @brief Send an item to the ring buffer from an ISR.
    * @param item Item to send.
    * @param item_size Size of the item to send.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Item sent successfully, false if the ring buffer is not created or failed to send
    * the item.
    */
@@ -121,8 +121,8 @@ class Policy {
   /**
    * @brief Return an item to the ring buffer after using it from an ISR.
    * @param item Item to return.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Item returned successfully, false if the ring buffer is not created.
    */
   bool returnItemFromISR(T* const item, BaseType_t& task_woken) const {
