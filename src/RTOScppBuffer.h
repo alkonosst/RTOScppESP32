@@ -57,8 +57,8 @@ class IBuffer {
    * @brief Send data to the buffer from an ISR.
    * @param tx_buffer Data to send.
    * @param bytes Number of bytes to send.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return uint32_t Number of bytes sent, 0 if the buffer is not created.
    */
   virtual uint32_t sendFromISR(const void* tx_buffer, const uint32_t bytes,
@@ -79,8 +79,8 @@ class IBuffer {
    * @brief Receive data from the buffer from an ISR.
    * @param rx_buffer Buffer to store the received data.
    * @param bytes Number of bytes to receive.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return uint32_t Number of bytes received, 0 if the buffer is not created or failed to receive
    * the data.
    */
@@ -336,8 +336,8 @@ class DataBuffer : public IBuffer, public Policy {
    * @brief Send data to the buffer from an ISR.
    * @param tx_buffer Data to send.
    * @param bytes Number of bytes to send.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return uint32_t Number of bytes sent, 0 if the buffer is not created.
    */
   uint32_t sendFromISR(const void* tx_buffer, const uint32_t bytes,
@@ -364,8 +364,8 @@ class DataBuffer : public IBuffer, public Policy {
    * @brief Receive data from the buffer from an ISR.
    * @param rx_buffer Buffer to store the received data.
    * @param bytes Number of bytes to receive.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return uint32_t Number of bytes received, 0 if the buffer is not created or failed to receive
    * the data.
    */

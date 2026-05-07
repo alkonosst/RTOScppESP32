@@ -137,8 +137,8 @@ class ITask {
    * @brief Notify the task from an ISR.
    * @param value Value to notify.
    * @param action Action to take.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Notification sent successfully, false if the task is not created or failed to send
    * the notification.
    */
@@ -161,8 +161,8 @@ class ITask {
    * @param value Value to notify.
    * @param action Action to take.
    * @param old_value Old value.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Notification sent successfully, false if the task is not created or failed to send
    * the notification.
    */
@@ -180,8 +180,8 @@ class ITask {
    * @brief Notify the task from an ISR. This function acts as a counting semaphore, it will
    * increment the notification value by 1. The task can wait for the notification using
    * notifyTake().
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Notification sent successfully, false if the task is not created.
    */
   virtual bool notifyGiveFromISR(BaseType_t& task_woken) const = 0;
@@ -528,8 +528,8 @@ class Task : public ITask {
    * @brief Notify the task from an ISR.
    * @param value Value to notify.
    * @param action Action to take.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Notification sent successfully, false if the task is not created or failed to send
    * the notification.
    */
@@ -558,8 +558,8 @@ class Task : public ITask {
    * @param value Value to notify.
    * @param action Action to take.
    * @param old_value Old value.
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Notification sent successfully, false if the task is not created or failed to send
    * the notification.
    */
@@ -583,8 +583,8 @@ class Task : public ITask {
    * @brief Notify the task from an ISR. This function acts as a counting semaphore, it will
    * increment the notification value by 1. The task can wait for the notification using
    * notifyTake().
-   * @param task_woken Task woken flag. If true, you need to use portYIELD_FROM_ISR() at the end of
-   * the ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
    * @return true Notification sent successfully, false if the task is not created.
    */
   bool notifyGiveFromISR(BaseType_t& task_woken) const override {
