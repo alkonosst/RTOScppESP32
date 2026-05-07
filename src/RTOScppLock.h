@@ -70,6 +70,31 @@ inline bool operator==(const QueueSetMemberHandle_t& queue_set_member, const ILo
   return queue_set_member == lock.getHandle();
 }
 
+// Interface for Semaphore objects, extends ILock with ISR support
+class ISemaphore : public ILock {
+  protected:
+  ISemaphore() = default;
+
+  public:
+  /**
+   * @brief Give the semaphore from an ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
+   * @return true Semaphore given successfully, false if the semaphore is not created or failed to
+   * give.
+   */
+  virtual bool giveFromISR(BaseType_t& task_woken) = 0;
+
+  /**
+   * @brief Take the semaphore from an ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
+   * @return true Semaphore taken successfully, false if the semaphore is not created or failed to
+   * take.
+   */
+  virtual bool takeFromISR(BaseType_t& task_woken) = 0;
+};
+
 namespace Internal {
 
 // CRTP base policy class
@@ -185,6 +210,17 @@ class SemaphoreBinaryPolicy : public Policy<SemaphoreBinaryPolicy<Derived>> {
   }
 
   bool giveImpl() { return xSemaphoreGive(this->_handle); }
+
+  public:
+  bool takeFromISR(BaseType_t& task_woken) {
+    if (!this->isCreated()) return false;
+    return xSemaphoreTakeFromISR(this->_handle, &task_woken);
+  }
+
+  bool giveFromISR(BaseType_t& task_woken) {
+    if (!this->isCreated()) return false;
+    return xSemaphoreGiveFromISR(this->_handle, &task_woken);
+  }
 };
 
 // Policy for binary semaphore with dynamic memory allocation
@@ -230,6 +266,16 @@ class SemaphoreCountingPolicy : public Policy<SemaphoreCountingPolicy<Derived>> 
   UBaseType_t getCount() const {
     if (!this->isCreated()) return 0;
     return uxSemaphoreGetCount(this->_handle);
+  }
+
+  bool takeFromISR(BaseType_t& task_woken) {
+    if (!this->isCreated()) return false;
+    return xSemaphoreTakeFromISR(this->_handle, &task_woken);
+  }
+
+  bool giveFromISR(BaseType_t& task_woken) {
+    if (!this->isCreated()) return false;
+    return xSemaphoreGiveFromISR(this->_handle, &task_woken);
   }
 };
 
@@ -311,21 +357,92 @@ class Lock : public ILock, public Policy {
   explicit operator bool() const override { return isCreated(); }
 };
 
+// Main SemaphoreLock class with ISR support. You need to specify the policy used
+template <typename Policy>
+class SemaphoreLock : public ISemaphore, public Policy {
+  public:
+  using Policy::Policy;
+
+  ~SemaphoreLock() {
+    if (Policy::isCreated()) vSemaphoreDelete(Policy::getHandle());
+  }
+
+  /**
+   * @brief Get the low-level handle of the semaphore. Useful for direct FreeRTOS API calls. Use it
+   * with caution.
+   * @return SemaphoreHandle_t Semaphore handle, nullptr if the semaphore is not created.
+   */
+  SemaphoreHandle_t getHandle() const override { return Policy::getHandle(); }
+
+  /**
+   * @brief Get the name of the semaphore. Useful for debugging and logging purposes.
+   * @return const char* Name of the semaphore. Default is "RtosLock" if no name is provided.
+   */
+  const char* getName() const override { return Policy::getName(); }
+
+  /**
+   * @brief Check if the semaphore is created.
+   * @return true Semaphore is created.
+   */
+  bool isCreated() const override { return Policy::isCreated(); }
+
+  /**
+   * @brief Take the semaphore.
+   * @param ticks_to_wait Maximum time to wait for the operation to complete.
+   * @return true Semaphore taken successfully, false if the semaphore is not created or failed to
+   * take.
+   */
+  bool take(const TickType_t ticks_to_wait = portMAX_DELAY) override {
+    return Policy::take(ticks_to_wait);
+  }
+
+  /**
+   * @brief Give the semaphore.
+   * @return true Semaphore given successfully, false if the semaphore is not created or failed to
+   * give.
+   */
+  bool give() override { return Policy::give(); }
+
+  /**
+   * @brief Give the semaphore from an ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
+   * @return true Semaphore given successfully, false if the semaphore is not created or failed to
+   * give.
+   */
+  bool giveFromISR(BaseType_t& task_woken) override { return Policy::giveFromISR(task_woken); }
+
+  /**
+   * @brief Take the semaphore from an ISR.
+   * @param task_woken Higher priority task woken flag. You need to use
+   * portYIELD_FROM_ISR(task_woken) at the end of the ISR.
+   * @return true Semaphore taken successfully, false if the semaphore is not created or failed to
+   * take.
+   */
+  bool takeFromISR(BaseType_t& task_woken) override { return Policy::takeFromISR(task_woken); }
+
+  /**
+   * @brief Check if the semaphore is created.
+   * @return true Semaphore is created.
+   */
+  explicit operator bool() const override { return isCreated(); }
+};
+
 } // namespace Internal
 
 using MutexDynamic          = Internal::Lock<Internal::MutexDynamicPolicy<>>;
 using MutexStatic           = Internal::Lock<Internal::MutexStaticPolicy<>>;
 using MutexRecursiveDynamic = Internal::Lock<Internal::MutexRecursiveDynamicPolicy<>>;
 using MutexRecursiveStatic  = Internal::Lock<Internal::MutexRecursiveStaticPolicy<>>;
-using SemBinaryDynamic      = Internal::Lock<Internal::SemaphoreBinaryDynamicPolicy<>>;
-using SemBinaryStatic       = Internal::Lock<Internal::SemaphoreBinaryStaticPolicy<>>;
+using SemBinaryDynamic      = Internal::SemaphoreLock<Internal::SemaphoreBinaryDynamicPolicy<>>;
+using SemBinaryStatic       = Internal::SemaphoreLock<Internal::SemaphoreBinaryStaticPolicy<>>;
 
 template <uint32_t MaxCount, uint32_t InitialCount = 0>
 using SemCountingDynamic =
-  Internal::Lock<Internal::SemaphoreCountingDynamicPolicy<MaxCount, InitialCount>>;
+  Internal::SemaphoreLock<Internal::SemaphoreCountingDynamicPolicy<MaxCount, InitialCount>>;
 
 template <uint32_t MaxCount, uint32_t InitialCount = 0>
 using SemCountingStatic =
-  Internal::Lock<Internal::SemaphoreCountingStaticPolicy<MaxCount, InitialCount>>;
+  Internal::SemaphoreLock<Internal::SemaphoreCountingStaticPolicy<MaxCount, InitialCount>>;
 
 } // namespace RTOS::Locks
